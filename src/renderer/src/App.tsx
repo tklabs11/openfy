@@ -110,7 +110,7 @@ export default function App() {
     <div className={'app' + (hasTrack && showNow ? ' np-on' : '')}>
       <Sidebar view={view} setView={setView} />
       <header className="topbar">
-        <button className="topbar-brand" onClick={() => setView({type:'home'})}><img className="openfy-pulse-brand" src="/openfy-pulse.png" alt="" /> Openfy</button>
+        <button className="topbar-brand" onClick={() => setView({type:'home'})}><img className="openfy-pulse-brand" src="./openfy-pulse.png" alt="" /> Openfy</button>
         <div className="topbar-links">
           <button className={view.type === 'home' ? 'selected' : ''} onClick={() => setView({type:'home'})}>Início</button>
           <button className={view.type === 'discover' ? 'selected' : ''} onClick={() => setView({type:'discover'})}>Descobrir</button>

@@ -41,7 +41,6 @@
     ],
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false,
       "icon": "resources/openfy-pulse.ico"
     },
     "mac": {

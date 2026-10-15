@@ -220,7 +220,7 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     backgroundColor: '#0b0b0f',
     title: 'Openfy',
-    ...(existsSync(join(__dirname, '../../resources/openfy-pulse.png')) ? { icon: join(__dirname, '../../resources/openfy-pulse.png') } : {}),
+    ...(existsSync(pulsePath()) ? { icon: pulsePath() } : {}),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -271,6 +271,10 @@ function registerMediaKeys(getWin: () => BrowserWindow | null): void {
       /* atalho indisponível nesta plataforma */
     }
   }
+}
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.openfy.app')
 }
 
 if (hasInstanceLock) app.whenReady().then(() => {
