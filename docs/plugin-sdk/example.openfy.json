@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "community.example-plugin",
+  "name": "Meu primeiro plugin",
+  "version": "1.0.0",
+  "author": "Comunidade Openfy",
+  "description": "Exemplo de manifesto declarativo para compartilhar com a comunidade.",
+  "kind": "utility",
+  "permissions": ["player.read"]
+}

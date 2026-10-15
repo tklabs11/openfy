@@ -1,0 +1,36 @@
+# Dependencies and build artifacts
+node_modules/
+out/
+dist/
+release/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Local settings and credentials
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.p12
+*.pfx
+*.key
+
+# Runtime user data / caches
+openfy-data.json
+**/GPUCache/
+**/Code Cache/
+**/Cache/
+**/ChromiumCache/
+logs/
+*.log
+npm-debug.log*
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/

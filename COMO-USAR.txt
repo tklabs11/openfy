@@ -1,0 +1,31 @@
+OPENFY - COMO USAR (passo a passo, sem configurar nada)
+
+PRIMEIRA VEZ (uma vez só)
+1. Instale o Node.js: https://nodejs.org  (baixe a versão "LTS" e vá clicando em Avançar).
+2. Extraia este ZIP numa pasta (clique direito > Extrair tudo).
+
+OPCIONAL: INCLUIR O JAMENDO (uma vez só)
+- Crie uma conta grátis em https://devportal.jamendo.com e copie o "client_id" do seu app.
+- Dê dois cliques em CONFIGURAR-JAMENDO.bat e cole o client_id. Sem isso o app funciona do mesmo jeito,
+  só sem as músicas do Jamendo (Audius e Internet Archive continuam funcionando).
+
+TESTAR O APP
+3. Dê dois cliques em  INSTALAR-E-RODAR.bat
+   Na primeira vez demora alguns minutos baixando coisas. Depois o Openfy abre.
+
+CRIAR O INSTALADOR PARA OS AMIGOS
+4. Dê dois cliques em  GERAR-INSTALADOR.bat
+5. No final abre a pasta "dist". Dentro tem o arquivo "Openfy Setup ... .exe".
+6. Mande esse .exe para seus amigos. Eles instalam e usam. Não precisa configurar nada.
+
+AVISO NORMAL NO WINDOWS DOS AMIGOS
+Ao abrir o instalador, o Windows pode mostrar "O Windows protegeu seu computador".
+Isso acontece com todo app sem assinatura paga. Cliquem em "Mais informações" e depois em "Executar assim mesmo".
+
+MAC / LINUX
+Abra o terminal na pasta e rode:  ./iniciar.sh
+Para instalador: npm install && npm run dist
+
+SE DER ERRO
+- "node não é reconhecido": instale o Node.js (passo 1) e feche/abra de novo.
+- Erro ao gerar o instalador: clique direito em GERAR-INSTALADOR.bat > Executar como administrador.
