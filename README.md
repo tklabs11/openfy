@@ -53,13 +53,11 @@ Espaço = play/pause. Teclas de mídia do teclado funcionam.
 ### Primeiro clone
 
 ```bash
-git clone https://github.com/SEU-USUARIO/openfy.git
+git clone https://github.com/tklabs11/openfy.git
 cd openfy
 npm ci
 npm run dev
 ```
-
-Substitua `SEU-USUARIO` pelo seu perfil GitHub. Não faça commit de credenciais reais.
 
 ## Créditos
 
