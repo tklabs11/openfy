@@ -72,15 +72,15 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    let lastTitle = ''
+    let lastTrackId = ''
     const sync = (): void => {
       const state = usePlayer.getState()
       const track = state.queue[state.index]
       const title = track?.title || ''
-      if (lastTitle !== title || state.playing !== previousPlaying) {
-        lastTitle = title
+      if (lastTrackId !== (track?.id || '') || state.playing !== previousPlaying) {
+        lastTrackId = track?.id || ''
         previousPlaying = state.playing
-        window.api.desktopUpdatePlayback(state.playing, title, track?.artist)
+        window.api.desktopUpdatePlayback(state.playing, title, track?.artist, state.duration, state.position)
       }
     }
     let previousPlaying = false

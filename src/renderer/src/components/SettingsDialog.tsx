@@ -4,16 +4,77 @@ import { usePlayer } from '../player'
 import { Icon } from './Icon'
 import { clearTaste, setTasteEnabled, tasteEnabled } from '../taste'
 import type { View } from './Sidebar'
+import type { AppUpdateState, DesktopPreferences, DiscordPresenceStatus } from '@shared/types'
 
 interface Props {open:boolean;onClose:()=>void;onNavigate:(view:View)=>void;showNow:boolean;onToggleNow:()=>void}
 export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Props) {
-  const [desktopPrefs, setDesktopPrefs] = useState({ minimizeToTray: false, notifications: false })
+  const [desktopPrefs, setDesktopPrefs] = useState<DesktopPreferences>({ minimizeToTray: false, notifications: false, discordPresence: false })
+  const [discordStatus, setDiscordStatus] = useState<DiscordPresenceStatus>('disabled')
+  const [fadeSaveError, setFadeSaveError] = useState('')
+  const [updateState, setUpdateState] = useState<AppUpdateState>({ status: 'idle' })
   const fadeSeconds = usePlayer(s => s.fadeSeconds)
-  useEffect(() => { if (open) void window.api.desktopGetPreferences().then(setDesktopPrefs) }, [open])
-  const updateDesktop = (key: 'minimizeToTray'|'notifications', value: boolean): void => {
+  useEffect(() => {
+    const unsubscribe = window.api.onDiscordPresenceStatus(setDiscordStatus)
+    const unsubscribeUpdates = window.api.onUpdateState(setUpdateState)
+    if (open) {
+      void window.api.desktopGetPreferences().then((prefs) => {
+        setDesktopPrefs(prefs)
+        if (prefs.fadeSeconds !== undefined) usePlayer.getState().setFadeSeconds(prefs.fadeSeconds)
+      }).catch((error: unknown) => {
+        console.error('[Openfy] Não foi possível carregar as preferências da área de trabalho:', error)
+      })
+      void window.api.desktopGetDiscordPresenceStatus().then(setDiscordStatus).catch((error: unknown) => {
+        console.error('[Openfy] Não foi possível consultar o estado do Discord Rich Presence:', error)
+        setDiscordStatus('error')
+      })
+      void window.api.desktopGetUpdateState().then(setUpdateState).catch((error: unknown) => {
+        console.error('[Openfy] Não foi possível consultar o estado das atualizações:', error)
+        setUpdateState({ status: 'error' })
+      })
+    }
+    return () => { unsubscribe(); unsubscribeUpdates() }
+  }, [open])
+  const updateDesktop = async (key: keyof DesktopPreferences, value: boolean): Promise<void> => {
     const next = { ...desktopPrefs, [key]: value }
     setDesktopPrefs(next)
-    void window.api.desktopSetPreferences(next)
+    try {
+      await window.api.desktopSetPreferences(next)
+    } catch (error) {
+      console.error('[Openfy] Não foi possível salvar as preferências da área de trabalho:', error)
+      setDesktopPrefs(desktopPrefs)
+      if (key === 'discordPresence') setDiscordStatus('error')
+    }
+  }
+  const updateFadeSeconds = async (value: number): Promise<void> => {
+    const previous = usePlayer.getState().fadeSeconds
+    const next = { ...desktopPrefs, fadeSeconds: value }
+    setFadeSaveError('')
+    setDesktopPrefs(next)
+    usePlayer.getState().setFadeSeconds(value)
+    try {
+      await window.api.desktopSetPreferences(next)
+    } catch (error) {
+      console.error('[Openfy] Não foi possível salvar a preferência de fade:', error)
+      usePlayer.getState().setFadeSeconds(previous)
+      setDesktopPrefs(desktopPrefs)
+      setFadeSaveError('Não foi possível salvar o tempo do fade. A configuração anterior foi restaurada.')
+    }
+  }
+  const checkForUpdates = async (): Promise<void> => {
+    try {
+      await window.api.desktopCheckForUpdates()
+    } catch (error) {
+      console.error('[Openfy] Não foi possível verificar atualizações:', error)
+      setUpdateState({ status: 'error' })
+    }
+  }
+  const installUpdate = async (): Promise<void> => {
+    try {
+      await window.api.desktopInstallUpdate()
+    } catch (error) {
+      console.error('[Openfy] Não foi possível reiniciar para instalar a atualização:', error)
+      setUpdateState({ status: 'error' })
+    }
   }
   const [personalization,setPersonalization] = useState(tasteEnabled())
   const [tab,setTab] = useState<'geral'|'audio'|'aparencia'|'mods'|'developer'|'privacidade'|'desktop'|'sobre'>('geral')
@@ -48,13 +109,36 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Pro
           </div>
           <footer className="about-footer">© 2026 TK Labs.</footer>
         </section>}
-        {tab==='desktop' && <><h3>Integração com Windows</h3>
-          <label className="settings-setting"><div><strong>Minimizar para a bandeja</strong><p>Ao minimizar ou fechar a janela, manter o Openfy na área de notificação. Use o menu do ícone para sair completamente.</p></div><input type="checkbox" checked={desktopPrefs.minimizeToTray} onChange={e => updateDesktop('minimizeToTray', e.target.checked)}/></label>
-          <label className="settings-setting"><div><strong>Notificações de músicas</strong><p>Mostrar uma notificação ao começar uma faixa diferente.</p></div><input type="checkbox" checked={desktopPrefs.notifications} onChange={e => updateDesktop('notifications', e.target.checked)}/></label>
+        {tab==='desktop' && <><h3>Integração com desktop</h3>
+          <label className="settings-setting"><div><strong>Minimizar para a bandeja</strong><p>Ao minimizar ou fechar a janela, manter o Openfy na área de notificação. Use o menu do ícone para sair completamente.</p></div><input type="checkbox" checked={desktopPrefs.minimizeToTray} onChange={e => void updateDesktop('minimizeToTray', e.target.checked)}/></label>
+          <label className="settings-setting"><div><strong>Notificações de músicas</strong><p>Mostrar uma notificação ao começar uma faixa diferente.</p></div><input type="checkbox" checked={desktopPrefs.notifications} onChange={e => void updateDesktop('notifications', e.target.checked)}/></label>
+          <label className="settings-setting"><div><strong>Discord Rich Presence</strong><p>Mostrar no seu perfil do Discord a música que está tocando no Openfy. O Discord precisa estar aberto com o status de atividade habilitado.</p></div><input type="checkbox" checked={desktopPrefs.discordPresence} onChange={e => void updateDesktop('discordPresence', e.target.checked)}/></label>
+          <p className="settings-tip" role="status">Discord: {{
+            disabled: 'integração desativada',
+            connecting: 'conectando…',
+            connected: 'conectado',
+            unavailable: 'não encontrado. Abra o aplicativo Discord para conectar.',
+            error: 'o Discord recusou a conexão. Verifique a configuração da integração.'
+          }[discordStatus]}</p>
+          <div className="settings-update">
+            <div><strong>Atualizações do Openfy</strong><p>{
+              updateState.status === 'idle' ? 'Verifique se há uma versão mais recente.' :
+              updateState.status === 'checking' ? 'Verificando atualizações…' :
+              updateState.status === 'available' ? `Versão ${updateState.version ?? ''} encontrada. Preparando o download…` :
+              updateState.status === 'downloading' ? `Baixando versão ${updateState.version ?? ''}… ${Math.round(updateState.percent ?? 0)}%` :
+              updateState.status === 'downloaded' ? `Versão ${updateState.version ?? ''} pronta para instalar.` :
+              updateState.status === 'not-available' ? 'O Openfy já está atualizado.' :
+              updateState.status === 'unsupported' ? 'A atualização pelo app estará disponível na versão instalada para Windows.' :
+              'Não foi possível verificar atualizações. Confira sua conexão e tente novamente.'
+            }</p></div>
+            {updateState.status === 'downloaded'
+              ? <button className="settings-action" onClick={() => void installUpdate()}>Reiniciar e atualizar</button>
+              : <button className="settings-action" disabled={['checking', 'available', 'downloading', 'unsupported'].includes(updateState.status)} onClick={() => void checkForUpdates()}>{updateState.status === 'error' ? 'Tentar novamente' : 'Buscar atualizações'}</button>}
+          </div>
           <p className="settings-tip">Controles na prévia da barra de tarefas estão disponíveis no Windows.</p>
         </>}
         {tab==='audio' &&<><h3>Reprodução e áudio</h3><p>Personalize as frequências, presets e visualizador no Audio Studio.</p>
-          <label className="settings-setting"><div><strong>Fade ao trocar, pausar ou retomar</strong><p>Transição suave de volume. Não é crossfade de duas faixas simultâneas. 0 desativa.</p></div><select className="settings-select" value={fadeSeconds} onChange={e => usePlayer.getState().setFadeSeconds(Number(e.target.value))}>{[0,0.5,1,2,3,4,6].map(v=><option key={v} value={v}>{v === 0 ? 'Desativado' : `${v} s`}</option>)}</select></label><button className="settings-action" onClick={()=>onNavigate({type:'studio'})}>Abrir Audio Studio →</button><p className="settings-tip">Faixas online com restrições CORS continuam usando reprodução direta para evitar silêncio. O processamento depende da autorização da fonte.</p></>}
+          <label className="settings-setting"><div><strong>Fade ao trocar, pausar ou retomar</strong><p>Transição suave de volume. Não é crossfade de duas faixas simultâneas. 0 desativa.</p></div><select className="settings-select" value={fadeSeconds} onChange={e => void updateFadeSeconds(Number(e.target.value))}>{[0,0.5,1,2,3,4,6].map(v=><option key={v} value={v}>{v === 0 ? 'Desativado' : `${v} s`}</option>)}</select></label>{fadeSaveError && <p className="discovery-error" role="alert">{fadeSaveError}</p>}<button className="settings-action" onClick={()=>onNavigate({type:'studio'})}>Abrir Audio Studio →</button><p className="settings-tip">Faixas online com restrições CORS continuam usando reprodução direta para evitar silêncio. O processamento depende da autorização da fonte.</p></>}
         {tab==='aparencia'&&<><h3>Seu Openfy, seu estilo</h3><p>Altere skins, cores e detalhes de aparência sem interromper a reprodução.</p><button className="settings-action" onClick={()=>onNavigate({type:'themes'})}>Personalizar temas →</button></>}
         {tab==='developer'&&<><h3>Developer Mode</h3><p>Crie e valide manifestos de plugins, com exportação e importação de arquivos JSON. Sem execução de código externo.</p><button className="settings-action" onClick={()=>onNavigate({type:'developer'})}>Abrir Developer Mode →</button></>}
         {tab==='mods'&&<><h3>Mod Hub</h3><p>Gerencie temas e extensões instaladas em um só lugar.</p><button className="settings-action" onClick={()=>onNavigate({type:'modhub'})}>Abrir Mod Hub →</button></>}

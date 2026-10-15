@@ -34,6 +34,21 @@ export interface Db {
 }
 
 export type MediaKey = 'play-pause' | 'next' | 'prev'
+export type DiscordPresenceStatus = 'disabled' | 'connecting' | 'connected' | 'unavailable' | 'error'
+export type AppUpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'not-available' | 'error' | 'unsupported'
+
+export interface AppUpdateState {
+  status: AppUpdateStatus
+  version?: string
+  percent?: number
+}
+
+export interface DesktopPreferences {
+  minimizeToTray: boolean
+  notifications: boolean
+  discordPresence: boolean
+  fadeSeconds?: number
+}
 
 export interface OpenfyApi {
   loadDb(): Promise<Db>
@@ -43,9 +58,15 @@ export interface OpenfyApi {
   search(query: string): Promise<Track[]>
   featured(): Promise<Track[]>
   onMediaKey(cb: (key: MediaKey) => void): () => void
-  desktopGetPreferences(): Promise<{ minimizeToTray: boolean; notifications: boolean }>
-  desktopSetPreferences(prefs: { minimizeToTray: boolean; notifications: boolean }): Promise<void>
-  desktopUpdatePlayback(playing: boolean, title?: string, artist?: string): void
+  desktopGetPreferences(): Promise<DesktopPreferences>
+  desktopSetPreferences(prefs: DesktopPreferences): Promise<void>
+  desktopGetDiscordPresenceStatus(): Promise<DiscordPresenceStatus>
+  onDiscordPresenceStatus(cb: (status: DiscordPresenceStatus) => void): () => void
+  desktopGetUpdateState(): Promise<AppUpdateState>
+  desktopCheckForUpdates(): Promise<void>
+  desktopInstallUpdate(): Promise<void>
+  onUpdateState(cb: (state: AppUpdateState) => void): () => void
+  desktopUpdatePlayback(playing: boolean, title?: string, artist?: string, duration?: number, position?: number): void
 }
 
 export const DEFAULT_DB: Db = {

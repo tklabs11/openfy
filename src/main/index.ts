@@ -5,8 +5,10 @@ import { promises as fs } from 'fs'
 import { basename, extname, join } from 'path'
 import { existsSync, readFileSync, mkdirSync } from 'fs'
 import { pathToFileURL } from 'url'
-import { DEFAULT_DB, type Db, type MediaKey, type Track } from '../shared/types'
+import { DEFAULT_DB, type Db, type DesktopPreferences, type MediaKey, type Track } from '../shared/types'
 import { search, featured } from './sources'
+import { discordPresence } from './discordPresence'
+import { appUpdates } from './updates'
 
 // Keep the existing userData path unchanged to preserve libraries and settings.
 // Chromium cache is disposable and belongs in a per-user local directory.
@@ -43,7 +45,7 @@ if (!hasInstanceLock) {
 
 const SCHEME = 'openfy-file'
 const desktopPrefsPath = (): string => join(app.getPath('userData'), 'desktop-preferences.json')
-let desktopPrefs = { minimizeToTray: false, notifications: false }
+let desktopPrefs: DesktopPreferences = { minimizeToTray: false, notifications: false, discordPresence: false }
 let tray: Tray | null = null
 let quitting = false
 let playback = { playing: false, title: '', artist: '' }
@@ -298,23 +300,54 @@ if (hasInstanceLock) app.whenReady().then(() => {
     cb({})
   })
 
-  try { const saved = JSON.parse(readFileSync(desktopPrefsPath(), 'utf8')); desktopPrefs = { minimizeToTray: saved.minimizeToTray === true, notifications: saved.notifications === true } } catch { /* defaults */ }
+  try {
+    const saved = JSON.parse(readFileSync(desktopPrefsPath(), 'utf8'))
+    const fadeSeconds = [0, 0.5, 1, 2, 3, 4, 6].find((value) => value === saved.fadeSeconds)
+    desktopPrefs = {
+      minimizeToTray: saved.minimizeToTray === true,
+      notifications: saved.notifications === true,
+      discordPresence: saved.discordPresence === true,
+      ...(fadeSeconds !== undefined ? { fadeSeconds } : {})
+    }
+  } catch { /* defaults */ }
   ipcMain.handle('desktop:getPreferences', () => desktopPrefs)
+  ipcMain.handle('desktop:discordPresenceStatus', () => discordPresence.getStatus())
+  ipcMain.handle('app:update:state', () => appUpdates.getState())
+  ipcMain.handle('app:update:check', () => appUpdates.check())
+  ipcMain.handle('app:update:install', () => appUpdates.install())
   ipcMain.handle('desktop:setPreferences', async (_event, prefs: unknown) => {
     if (!prefs || typeof prefs !== 'object') return
     const p = prefs as Record<string, unknown>
-    desktopPrefs = { minimizeToTray: p.minimizeToTray === true, notifications: p.notifications === true }
+    const fadeSeconds = [0, 0.5, 1, 2, 3, 4, 6].find((value) => value === p.fadeSeconds)
+    desktopPrefs = {
+      minimizeToTray: p.minimizeToTray === true,
+      notifications: p.notifications === true,
+      discordPresence: p.discordPresence === true,
+      ...(fadeSeconds !== undefined
+        ? { fadeSeconds }
+        : desktopPrefs.fadeSeconds !== undefined
+          ? { fadeSeconds: desktopPrefs.fadeSeconds }
+          : {})
+    }
     await fs.writeFile(desktopPrefsPath(), JSON.stringify(desktopPrefs), 'utf8')
+    discordPresence.setEnabled(desktopPrefs.discordPresence)
     if (desktopPrefs.minimizeToTray) setupTray()
     else if (tray) { tray.destroy(); tray = null }
   })
+  discordPresence.setStatusListener((status) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('desktop:discordPresenceStatus', status)
+  })
+  discordPresence.setEnabled(desktopPrefs.discordPresence)
   ipcMain.on('desktop:playback', (_event, data: unknown) => {
     if (!data || typeof data !== 'object') return
     const p = data as Record<string, unknown>
     const title = typeof p.title === 'string' ? p.title.slice(0, 180) : ''
     const artist = typeof p.artist === 'string' ? p.artist.slice(0, 180) : ''
+    const duration = typeof p.duration === 'number' && Number.isFinite(p.duration) ? p.duration : 0
+    const position = typeof p.position === 'number' && Number.isFinite(p.position) ? p.position : 0
     const changed = title && title !== playback.title
     playback = { playing: p.playing === true, title, artist }
+    discordPresence.updatePlayback({ playing: playback.playing, title, artist, duration, position })
     if (mainWindow && !mainWindow.isDestroyed()) updateThumbbar(mainWindow)
     refreshTray()
     if (changed && playback.playing && desktopPrefs.notifications && Notification.isSupported()) new Notification({ title: 'Tocando agora no Openfy', body: `${title} — ${artist}` }).show()
@@ -323,6 +356,10 @@ if (hasInstanceLock) app.whenReady().then(() => {
   let win: BrowserWindow | null = createWindow()
   win.on('closed', () => (win = null))
   registerMediaKeys(() => win)
+  appUpdates.setListener((state) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:update:state', state)
+  })
+  appUpdates.initialize(app.isPackaged, process.platform, app.getVersion())
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -333,7 +370,7 @@ if (hasInstanceLock) app.whenReady().then(() => {
 })
 
 app.on('before-quit', () => { quitting = true })
-app.on('will-quit', () => { globalShortcut.unregisterAll(); tray?.destroy() })
+app.on('will-quit', () => { globalShortcut.unregisterAll(); tray?.destroy(); discordPresence.setEnabled(false) })
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })

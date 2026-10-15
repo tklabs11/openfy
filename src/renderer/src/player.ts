@@ -211,6 +211,9 @@ export const usePlayer = create<PlayerState>((set, get) => {
     seek(seconds) {
       active?.seek(seconds)
       set({ position: seconds })
+      const state = get()
+      const track = state.queue[state.index]
+      window.api.desktopUpdatePlayback(state.playing, track?.title, track?.artist, state.duration, seconds)
     },
 
     setVolume(v) {

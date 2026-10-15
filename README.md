@@ -38,6 +38,16 @@ src/renderer      interface React (views, componentes, player, biblioteca)
 ## Atalhos
 Espaço = play/pause. Teclas de mídia do teclado funcionam.
 
+## Discord Rich Presence
+
+Ative em **Configurações → Desktop → Discord Rich Presence** para mostrar no Discord a faixa e o artista reproduzidos no Openfy. O Discord precisa estar aberto, e a exibição da atividade depende das configurações de privacidade do próprio Discord. A integração fica desativada por padrão.
+
+## Atualizações automáticas (Windows)
+
+As versões instaladas no Windows verificam atualizações publicadas em GitHub Releases. A verificação também pode ser iniciada em **Configurações → Desktop**; quando uma atualização é encontrada, o app a baixa e oferece reiniciar para instalar. Versões beta recebem versões beta e estáveis recebem apenas versões estáveis.
+
+Para publicar uma versão Windows, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.1.1-beta.2`) e envie-a ao GitHub. O workflow de release gera o instalador NSIS e publica os arquivos na release correspondente.
+
 ## Notas
 - Playlists e músicas salvas ficam em `openfy-data.json` na pasta de dados do app.
 - Dados antigos de faixas de fontes removidas são descartados ao abrir o app.
