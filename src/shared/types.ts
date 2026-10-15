@@ -16,6 +16,9 @@ export interface Track {
 export interface Playlist {
   id: string
   name: string
+  description?: string
+  cover?: string
+  trackAddedAt?: Record<string, number>
   trackIds: string[]
 }
 

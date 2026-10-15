@@ -7,9 +7,10 @@ interface SearchProps {
   query: string
   onQueryChange: (value: string) => void
   onSearch: (value: string) => void
+  onCreatePlaylist: (track: Track) => void
 }
 
-export function SearchView({ query, onQueryChange, onSearch }: SearchProps) {
+export function SearchView({ query, onQueryChange, onSearch, onCreatePlaylist }: SearchProps) {
   const [results, setResults] = useState<Track[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,7 +55,7 @@ export function SearchView({ query, onQueryChange, onSearch }: SearchProps) {
       {!loading && results.length > 0 && (
         <>
           <h2 className="shelf-title">Resultados para "{searched}"</h2>
-          <TrackList tracks={results} />
+          <TrackList tracks={results} onCreatePlaylist={onCreatePlaylist} />
         </>
       )}
     </section>

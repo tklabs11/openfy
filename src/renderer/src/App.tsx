@@ -17,11 +17,15 @@ import { SavedView } from './views/SavedView'
 import { PlaylistView } from './views/PlaylistView'
 import { useLibrary } from './library'
 import { usePlayer } from './player'
+import type { Track } from '@shared/types'
+import { PlaylistDetailsDialog, type PlaylistDetails } from './components/PlaylistDetailsDialog'
 
 export default function App() {
   const ready = useLibrary((s) => s.ready)
   const hasTrack = usePlayer((s) => s.index >= 0)
   const [view, setView] = useState<View>({ type: 'home' })
+  const [playlistEditor, setPlaylistEditor] = useState<{ playlistId?: string; firstTrack?: Track } | null>(null)
+  const editingPlaylist = useLibrary((s) => s.playlists.find((playlist) => playlist.id === playlistEditor?.playlistId))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchHistory, setSearchHistory] = useState<string[]>(() => {
@@ -108,7 +112,7 @@ export default function App() {
 
   return (
     <div className={'app' + (hasTrack && showNow ? ' np-on' : '')}>
-      <Sidebar view={view} setView={setView} />
+      <Sidebar view={view} setView={setView} onCreatePlaylist={() => setPlaylistEditor({})} />
       <header className="topbar">
         <button className="topbar-brand" onClick={() => setView({type:'home'})}><img className="openfy-pulse-brand" src="./openfy-pulse.png" alt="" /> Openfy</button>
         <div className="topbar-links">
@@ -141,17 +145,37 @@ export default function App() {
         {view.type === 'themes' && <ThemesView />}
         {view.type === 'modhub' && <ModHubView />}
         {view.type === 'developer' && <DeveloperView />}
-        {view.type === 'discover' && <DiscoverView />}
+        {view.type === 'discover' && <DiscoverView onCreatePlaylist={(track) => setPlaylistEditor({ firstTrack: track })} />}
         {view.type === 'studio' && <AudioStudioView />}
         {view.type === 'home' && <HomeView setView={setView} />}
-        {view.type === 'search' && <SearchView query={searchQuery} onQueryChange={updateSearch} onSearch={submitSearch} />}
-        {view.type === 'saved' && <SavedView />}
+        {view.type === 'search' && <SearchView query={searchQuery} onQueryChange={updateSearch} onSearch={submitSearch} onCreatePlaylist={(track) => setPlaylistEditor({ firstTrack: track })} />}
+        {view.type === 'saved' && <SavedView onCreatePlaylist={(track) => setPlaylistEditor({ firstTrack: track })} />}
         {view.type === 'playlist' && (
-          <PlaylistView key={view.id} id={view.id} onDeleted={() => setView({ type: 'home' })} />
+          <PlaylistView
+            key={view.id}
+            id={view.id}
+            onDeleted={() => setView({ type: 'home' })}
+            onEdit={() => setPlaylistEditor({ playlistId: view.id })}
+            onCreatePlaylist={(track) => setPlaylistEditor({ firstTrack: track })}
+          />
         )}
       </main>
       {showNow && <NowPanel />}
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} onNavigate={(v) => {setView(v);setSettingsOpen(false)}} showNow={showNow} onToggleNow={() => {const next = !showNow;setShowNow(next);localStorage.setItem('openfy-show-now',String(next))}} />
+      <PlaylistDetailsDialog
+        open={playlistEditor !== null}
+        playlist={editingPlaylist}
+        onClose={() => setPlaylistEditor(null)}
+        onSave={(details: PlaylistDetails) => {
+          if (playlistEditor?.playlistId) {
+            useLibrary.getState().updatePlaylist(playlistEditor.playlistId, details)
+          } else {
+            const id = useLibrary.getState().createPlaylist(details.name, playlistEditor?.firstTrack, details)
+            setView({ type: 'playlist', id })
+          }
+          setPlaylistEditor(null)
+        }}
+      />
       <MiniPlayer />
       <PlayerBar />
     </div>

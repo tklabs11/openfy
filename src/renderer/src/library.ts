@@ -1,16 +1,17 @@
 import { create } from 'zustand'
-import { DEFAULT_DB, type Db, type Settings, type Track } from '@shared/types'
+import { DEFAULT_DB, type Db, type Playlist, type Settings, type Track } from '@shared/types'
 
 interface LibraryState extends Db {
   ready: boolean
   init(): Promise<void>
   likeTracks(tracks: Track[]): void
   toggleLike(track: Track): void
-  createPlaylist(name: string, firstTrack?: Track): string
-  renamePlaylist(id: string, name: string): void
+  createPlaylist(name: string, firstTrack?: Track, details?: Pick<Playlist, 'description' | 'cover'>): string
+  updatePlaylist(id: string, details: Pick<Playlist, 'name' | 'description' | 'cover'>): void
   deletePlaylist(id: string): void
   addToPlaylist(playlistId: string, track: Track): void
   removeFromPlaylist(playlistId: string, trackId: string): void
+  reorderPlaylistTrack(playlistId: string, fromTrackId: string, toTrackId: string): void
   updateSettings(patch: Partial<Settings>): void
 }
 
@@ -54,20 +55,31 @@ export const useLibrary = create<LibraryState>((set, get) => {
       persist()
     },
 
-    createPlaylist(name, firstTrack) {
+    createPlaylist(name, firstTrack, details = {}) {
       const id = crypto.randomUUID()
       set((s) => ({
         tracks: firstTrack ? merge(s.tracks, [firstTrack]) : s.tracks,
-        playlists: [...s.playlists, { id, name: name.trim() || 'Minha playlist', trackIds: firstTrack ? [firstTrack.id] : [] }]
+        playlists: [...s.playlists, {
+          id,
+          name: name.trim() || 'Minha playlist',
+          description: details.description?.trim() || undefined,
+          cover: details.cover,
+          trackAddedAt: firstTrack ? { [firstTrack.id]: Date.now() } : {},
+          trackIds: firstTrack ? [firstTrack.id] : []
+        }]
       }))
       persist()
       return id
     },
 
-    renamePlaylist(id, name) {
-      const clean = name.trim()
-      if (!clean) return
-      set((s) => ({ playlists: s.playlists.map((p) => (p.id === id ? { ...p, name: clean } : p)) }))
+    updatePlaylist(id, details) {
+      const name = details.name.trim()
+      if (!name) return
+      set((s) => ({
+        playlists: s.playlists.map((p) => p.id === id
+          ? { ...p, name, description: details.description?.trim() || undefined, cover: details.cover }
+          : p)
+      }))
       persist()
     },
 
@@ -77,20 +89,50 @@ export const useLibrary = create<LibraryState>((set, get) => {
     },
 
     addToPlaylist(playlistId, track) {
-      set((s) => ({
-        tracks: merge(s.tracks, [track]),
-        playlists: s.playlists.map((p) =>
-          p.id === playlistId && !p.trackIds.includes(track.id) ? { ...p, trackIds: [...p.trackIds, track.id] } : p
-        )
-      }))
+      set((s) => {
+        const playlist = s.playlists.find((p) => p.id === playlistId)
+        if (!playlist || playlist.trackIds.includes(track.id)) return {}
+        return {
+          tracks: merge(s.tracks, [track]),
+          playlists: s.playlists.map((p) => p.id === playlistId
+            ? {
+                ...p,
+                trackIds: [...p.trackIds, track.id],
+                trackAddedAt: { ...p.trackAddedAt, [track.id]: Date.now() }
+              }
+            : p)
+        }
+      })
       persist()
     },
 
     removeFromPlaylist(playlistId, trackId) {
       set((s) => ({
         playlists: s.playlists.map((p) =>
-          p.id === playlistId ? { ...p, trackIds: p.trackIds.filter((x) => x !== trackId) } : p
+          p.id === playlistId
+            ? {
+                ...p,
+                trackIds: p.trackIds.filter((x) => x !== trackId),
+                trackAddedAt: Object.fromEntries(Object.entries(p.trackAddedAt ?? {}).filter(([id]) => id !== trackId))
+              }
+            : p
         )
+      }))
+      persist()
+    },
+
+    reorderPlaylistTrack(playlistId, fromTrackId, toTrackId) {
+      set((s) => ({
+        playlists: s.playlists.map((p) => {
+          if (p.id !== playlistId) return p
+          const from = p.trackIds.indexOf(fromTrackId)
+          const to = p.trackIds.indexOf(toTrackId)
+          if (from < 0 || to < 0 || from === to) return p
+          const trackIds = [...p.trackIds]
+          trackIds.splice(from, 1)
+          trackIds.splice(to, 0, fromTrackId)
+          return { ...p, trackIds }
+        })
       }))
       persist()
     },

@@ -13,7 +13,7 @@ const genres = [
 ]
 const uniq = (tracks: Track[]) => [...new Map(tracks.map(t => [t.id, t])).values()]
 
-export function DiscoverView() {
+export function DiscoverView({ onCreatePlaylist }: { onCreatePlaylist: (track: Track) => void }) {
   const liked = useLibrary(s => s.liked)
   const saved = useLibrary(s => s.tracks)
   const [genre, setGenre] = useState(genres[0])
@@ -51,9 +51,9 @@ export function DiscoverView() {
     <div className="radio-panel"><div><div className="discovery-eyebrow">OPENFY RADIO</div><h2>Uma rádio com a sua vibe</h2><p>Comece pelo gênero selecionado ou digite um artista/estilo para buscar faixas relacionadas.</p></div><div className="radio-actions"><input value={seed} onChange={e=>setSeed(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void playRadio()}} placeholder="Artista ou estilo (opcional)"/><button disabled={radio||loading} onClick={()=>void playRadio()}>{radio?'Preparando…':'▶ Iniciar rádio'}</button></div></div>
     {error && <p className="discovery-error" role="alert">{error}</p>}
     <h2 className="shelf-title">{genre.name} · músicas disponíveis</h2>
-    {loading ? <p className="empty">Buscando músicas…</p> : tracks.length ? <TrackList tracks={tracks}/> : <p className="empty">Nenhuma faixa encontrada neste estilo.</p>}
-    {favorites.length > 0 && <><h2 className="shelf-title">Suas favoritas</h2><TrackList tracks={favorites.slice(0,10)}/></>}
-    {recent.length > 0 && <><h2 className="shelf-title">Da sua biblioteca, ouvidas recentemente</h2><TrackList tracks={recent}/></>}
+    {loading ? <p className="empty">Buscando músicas…</p> : tracks.length ? <TrackList tracks={tracks} onCreatePlaylist={onCreatePlaylist}/> : <p className="empty">Nenhuma faixa encontrada neste estilo.</p>}
+    {favorites.length > 0 && <><h2 className="shelf-title">Suas favoritas</h2><TrackList tracks={favorites.slice(0,10)} onCreatePlaylist={onCreatePlaylist}/></>}
+    {recent.length > 0 && <><h2 className="shelf-title">Da sua biblioteca, ouvidas recentemente</h2><TrackList tracks={recent} onCreatePlaylist={onCreatePlaylist}/></>}
     <p className="discovery-note">As músicas vêm das fontes configuradas no Openfy. A disponibilidade e os direitos de uso dependem da licença de cada faixa; a rádio monta uma fila, sem recomendações por IA nesta versão.</p>
   </section>
 }

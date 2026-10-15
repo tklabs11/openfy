@@ -36,11 +36,12 @@ export function HomeView({ setView }: { setView: (v: View) => void }) {
 
   const shortcuts = useMemo(
     () => [
-      { key: 'saved', name: 'Músicas salvas', hue: 270, go: () => setView({ type: 'saved' }), heart: true },
+      { key: 'saved', name: 'Músicas salvas', hue: 270, cover: undefined, go: () => setView({ type: 'saved' }), heart: true },
       ...playlists.slice(0, 5).map((p) => ({
         key: p.id,
         name: p.name,
         hue: hueOf(p.id),
+        cover: p.cover,
         go: () => setView({ type: 'playlist', id: p.id }),
         heart: false
       }))
@@ -55,8 +56,8 @@ export function HomeView({ setView }: { setView: (v: View) => void }) {
       <div className="shortcuts">
         {shortcuts.map((s) => (
           <button key={s.key} className="shortcut" onClick={s.go}>
-            <div className="sq" style={{ background: `linear-gradient(135deg, hsl(${s.hue} 45% 40%), hsl(${(s.hue + 40) % 360} 45% 24%))` }}>
-              <Icon name={s.heart ? 'heart' : 'music'} size={24} />
+            <div className="sq" style={{ background: s.cover ? 'transparent' : `linear-gradient(135deg, hsl(${s.hue} 45% 40%), hsl(${(s.hue + 40) % 360} 45% 24%))` }}>
+              {s.cover ? <img src={s.cover} alt="" /> : <Icon name={s.heart ? 'heart' : 'music'} size={24} />}
             </div>
             <span>{s.name}</span>
           </button>

@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '@shared/types'
 import { useLibrary } from '../library'
 import { currentTrack, usePlayer } from '../player'
-import { fmtTime } from '../util'
+import { fmtTime, hueOf } from '../util'
 import { Icon } from './Icon'
 
-function AddMenu({ track }: { track: Track }) {
+function AddMenu({ track, onCreatePlaylist }: { track: Track; onCreatePlaylist: (track: Track) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const playlists = useLibrary((s) => s.playlists)
@@ -42,8 +42,7 @@ function AddMenu({ track }: { track: Track }) {
           <button
             className="menu-new"
             onClick={() => {
-              const n = useLibrary.getState().playlists.length + 1
-              useLibrary.getState().createPlaylist(`Minha playlist nº ${n}`, track)
+              onCreatePlaylist(track)
               setOpen(false)
             }}
           >
@@ -59,13 +58,17 @@ interface Props {
   tracks: Track[]
   empty?: string
   onRemove?: (t: Track) => void
+  onCreatePlaylist: (track: Track) => void
+  onReorder?: (fromTrackId: string, toTrackId: string) => void
 }
 
-export function TrackList({ tracks, empty = 'Nada por aqui ainda.', onRemove }: Props) {
+export function TrackList({ tracks, empty = 'Nada por aqui ainda.', onRemove, onCreatePlaylist, onReorder }: Props) {
   const current = usePlayer(currentTrack)
   const playing = usePlayer((s) => s.playing)
   const liked = useLibrary((s) => s.liked)
   const likedSet = useMemo(() => new Set(liked), [liked])
+  const draggedTrack = useRef<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
 
   if (!tracks.length) return empty ? <p className="empty">{empty}</p> : null
 
@@ -75,8 +78,8 @@ export function TrackList({ tracks, empty = 'Nada por aqui ainda.', onRemove }: 
         <span className="idx">#</span>
         <span>Título</span>
         <span className="album">Álbum</span>
-        <span />
         <span className="dur">Duração</span>
+        <span className="heart-heading" aria-label="Favorita" />
         <span />
       </div>
       {tracks.map((t, i) => {
@@ -84,8 +87,35 @@ export function TrackList({ tracks, empty = 'Nada por aqui ainda.', onRemove }: 
         const isLiked = likedSet.has(t.id)
         return (
           <div
-            key={t.id + ':' + i}
-            className={'row' + (isCurrent ? ' current' : '')}
+            key={t.id}
+            className={'row' + (isCurrent ? ' current' : '') + (onReorder ? ' reorderable' : '') + (dropTarget === t.id ? ' drop-target' : '')}
+            draggable={!!onReorder}
+            onDragStart={(event) => {
+              if (!onReorder) return
+              draggedTrack.current = t.id
+              event.dataTransfer.effectAllowed = 'move'
+              event.dataTransfer.setData('text/plain', t.id)
+            }}
+            onDragOver={(event) => {
+              if (!onReorder || !draggedTrack.current || draggedTrack.current === t.id) return
+              event.preventDefault()
+              event.dataTransfer.dropEffect = 'move'
+              setDropTarget(t.id)
+            }}
+            onDragLeave={(event) => {
+              if (event.currentTarget === event.target) setDropTarget(null)
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              const fromTrackId = draggedTrack.current ?? event.dataTransfer.getData('text/plain')
+              if (fromTrackId && fromTrackId !== t.id) onReorder?.(fromTrackId, t.id)
+              draggedTrack.current = null
+              setDropTarget(null)
+            }}
+            onDragEnd={() => {
+              draggedTrack.current = null
+              setDropTarget(null)
+            }}
             onDoubleClick={() => usePlayer.getState().playQueue(tracks, i)}
           >
             <button className="idx" onClick={() => usePlayer.getState().playQueue(tracks, i)}>
@@ -93,17 +123,21 @@ export function TrackList({ tracks, empty = 'Nada por aqui ainda.', onRemove }: 
               <span className="p"><Icon name="play" size={16} /></span>
             </button>
             <div className="meta">
+              {onReorder && <span className="drag-handle" aria-hidden="true"><Icon name="drag" size={16} /></span>}
               {t.cover ? (
                 <img className="cover" src={t.cover} alt="" />
               ) : (
-                <div className="cover ph"><Icon name="music" size={18} /></div>
+                <div className="cover ph" style={{ background: `linear-gradient(145deg, hsl(${hueOf(t.id)} 48% 34%), hsl(${(hueOf(t.id) + 42) % 360} 42% 18%))` }}>
+                  <span aria-hidden="true">{t.title.trim().charAt(0).toLocaleUpperCase() || '♪'}</span>
+                </div>
               )}
               <div className="txt">
-                <div className="title">{t.title}</div>
+                <div className="title" title={t.title}>{t.title}</div>
                 <div className="artist">{t.artist || 'Artista desconhecido'}</div>
               </div>
             </div>
             <span className="album">{t.album || '—'}</span>
+            <span className="dur">{t.duration && t.duration > 0 ? fmtTime(t.duration) : '—'}</span>
             <button
               className={'icon-btn heart' + (isLiked ? ' on' : ' hov')}
               title={isLiked ? 'Remover das músicas salvas' : 'Salvar nas músicas salvas'}
@@ -111,9 +145,8 @@ export function TrackList({ tracks, empty = 'Nada por aqui ainda.', onRemove }: 
             >
               <Icon name="heart" size={18} outline={!isLiked} />
             </button>
-            <span className="dur">{t.duration ? fmtTime(t.duration) : ''}</span>
             <div className="actions">
-              <AddMenu track={t} />
+              <AddMenu track={t} onCreatePlaylist={onCreatePlaylist} />
               {onRemove && (
                 <button className="icon-btn hov" title="Remover desta playlist" onClick={() => onRemove(t)}>
                   <Icon name="close" size={16} />

@@ -122,10 +122,16 @@ async function readDb(): Promise<Db> {
     )
     const ids = new Set(tracks.map((t) => t.id))
     const liked: string[] = (Array.isArray(raw.liked) ? raw.liked : []).filter((id: string) => ids.has(id))
-    const playlists = (Array.isArray(raw.playlists) ? raw.playlists : []).map((p: Db['playlists'][number]) => ({
-      ...p,
-      trackIds: (Array.isArray(p.trackIds) ? p.trackIds : []).filter((id) => ids.has(id))
-    }))
+    const playlists = (Array.isArray(raw.playlists) ? raw.playlists : []).map((p: Db['playlists'][number]) => {
+      const trackIds = (Array.isArray(p.trackIds) ? p.trackIds : []).filter((id) => ids.has(id))
+      const trackIdSet = new Set(trackIds)
+      const trackAddedAt = p.trackAddedAt && typeof p.trackAddedAt === 'object' && !Array.isArray(p.trackAddedAt)
+        ? Object.fromEntries(Object.entries(p.trackAddedAt).filter(([id, addedAt]) =>
+            trackIdSet.has(id) && typeof addedAt === 'number' && Number.isFinite(addedAt)
+          ))
+        : undefined
+      return { ...p, trackIds, trackAddedAt }
+    })
     return {
       tracks,
       liked,

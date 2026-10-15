@@ -4,8 +4,9 @@ import { usePlayer } from '../player'
 import { plural } from '../util'
 import { TrackList } from '../components/TrackList'
 import { Icon } from '../components/Icon'
+import type { Track } from '@shared/types'
 
-export function SavedView() {
+export function SavedView({ onCreatePlaylist }: { onCreatePlaylist: (track: Track) => void }) {
   const tracks = useLibrary((s) => s.tracks)
   const liked = useLibrary((s) => s.liked)
 
@@ -35,7 +36,7 @@ export function SavedView() {
         <button className="btn" onClick={importFiles}>Adicionar arquivos do computador</button>
         <button className="btn" onClick={importFolder}>Adicionar pasta</button>
       </div>
-      <TrackList tracks={list} empty="Toque no coração de qualquer música para salvá-la aqui, ou adicione arquivos do seu computador." />
+      <TrackList tracks={list} empty="Toque no coração de qualquer música para salvá-la aqui, ou adicione arquivos do seu computador." onCreatePlaylist={onCreatePlaylist} />
     </section>
   )
 }
