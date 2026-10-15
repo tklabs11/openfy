@@ -16,18 +16,38 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Pro
     void window.api.desktopSetPreferences(next)
   }
   const [personalization,setPersonalization] = useState(tasteEnabled())
-  const [tab,setTab] = useState<'geral'|'audio'|'aparencia'|'mods'|'developer'|'privacidade'|'desktop'>('geral')
+  const [tab,setTab] = useState<'geral'|'audio'|'aparencia'|'mods'|'developer'|'privacidade'|'desktop'|'sobre'>('geral')
   if (!open) return null
   return <div className="settings-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
     <section className="settings-dialog" role="dialog" aria-modal="true" aria-label="Configurações do Openfy">
       <header className="settings-heading"><div><small>PREFERÊNCIAS</small><h2>Configurações</h2></div><button className="topbar-icon" aria-label="Fechar" onClick={onClose}><Icon name="close"/></button></header>
-      <div className="settings-body"><nav className="settings-tabs">{([['geral','Geral'],['audio','Áudio'],['aparencia','Aparência'],['mods','Mods e extensões'],['developer','Desenvolvedor'],['desktop','Desktop'],['privacidade','Privacidade']] as const).map(([id,name])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{name}</button>)}</nav>
+      <div className="settings-body"><nav className="settings-tabs">{([['geral','Geral'],['audio','Áudio'],['aparencia','Aparência'],['mods','Mods e extensões'],['developer','Desenvolvedor'],['desktop','Desktop'],['privacidade','Privacidade'],['sobre','Sobre']] as const).map(([id,name])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{name}</button>)}</nav>
       <div className="settings-content">
         {tab==='geral'&&<><h3>Interface</h3><label className="settings-setting"><div><strong>Painel da música atual</strong><p>Exibir a capa e informações à direita. Você também pode alternar pelo ícone no topo.</p></div><input type="checkbox" checked={showNow} onChange={onToggleNow}/></label><p className="settings-tip">Suas preferências visuais são salvas neste dispositivo.</p></>}
         {tab==='privacidade'&&<><h3>Seu gosto é seu</h3><p className="privacy-motto">“Seu gosto musical pertence a você. O Openfy apenas aprende com ele, no seu dispositivo.”</p>
           <label className="settings-setting"><div><strong>Personalizar minha página inicial</strong><p>Aprendizado local baseado no histórico de músicas reproduzidas e concluídas. Não exige conta.</p></div><input type="checkbox" checked={personalization} onChange={e=>{setPersonalization(e.target.checked);setTasteEnabled(e.target.checked)}}/></label>
           <button className="settings-action" onClick={()=>{if(window.confirm('Apagar todo o histórico de preferências musicais salvo neste dispositivo?')) clearTaste()}}>Apagar histórico de preferências</button>
           <p className="settings-tip">Desativar a personalização impede novos registros. Apagar o histórico elimina os registros anteriores.</p></>}
+        {tab==='sobre'&&<section className="about-page" aria-label="Sobre o Openfy">
+          <div className="about-brand">
+            <img src="./openfy-pulse.png" alt="Logo do Openfy" />
+            <div><h3>Openfy</h3><div className="about-badges"><span>v{__APP_VERSION__}</span><span>Beta</span><span>Código aberto · MIT</span></div></div>
+          </div>
+          <p className="about-description">Sua música, seu espaço. Um player gratuito, moderno e personalizável para desktop.</p>
+          <div className="about-credits">
+            <div><span>Criador</span><strong>(TK)</strong></div>
+            <div><span>Desenvolvimento</span><strong>TK Labs</strong></div>
+            <div><span>Assistência de IA</span><strong>ChatGPT (OpenAI)</strong></div>
+            <div><span>Licença</span><strong>MIT</strong></div>
+          </div>
+          <p className="about-disclaimer">O Openfy é um projeto independente, gratuito e de código aberto, sem afiliação ou endosso da OpenAI.</p>
+          <div className="about-links">
+            <a href="https://github.com/tklabs11/openfy" target="_blank" rel="noreferrer"><Icon name="code" size={16}/>Repositório</a>
+            <a href="https://github.com/tklabs11/openfy/issues" target="_blank" rel="noreferrer"><Icon name="issue" size={16}/>Reportar problemas</a>
+            <a href="https://github.com/tklabs11/openfy/blob/main/LICENSE" target="_blank" rel="noreferrer"><Icon name="license" size={16}/>Licença</a>
+          </div>
+          <footer className="about-footer">© 2026 TK Labs.</footer>
+        </section>}
         {tab==='desktop' && <><h3>Integração com Windows</h3>
           <label className="settings-setting"><div><strong>Minimizar para a bandeja</strong><p>Ao minimizar ou fechar a janela, manter o Openfy na área de notificação. Use o menu do ícone para sair completamente.</p></div><input type="checkbox" checked={desktopPrefs.minimizeToTray} onChange={e => updateDesktop('minimizeToTray', e.target.checked)}/></label>
           <label className="settings-setting"><div><strong>Notificações de músicas</strong><p>Mostrar uma notificação ao começar uma faixa diferente.</p></div><input type="checkbox" checked={desktopPrefs.notifications} onChange={e => updateDesktop('notifications', e.target.checked)}/></label>
