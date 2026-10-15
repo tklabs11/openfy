@@ -21,12 +21,12 @@ function AddMenu({ track, onCreatePlaylist }: { track: Track; onCreatePlaylist: 
 
   return (
     <div className="menu-wrap" ref={ref}>
-      <button className="icon-btn hov" title="Adicionar à playlist" onClick={() => setOpen((o) => !o)}>
+      <button className="icon-btn hov" title="Adicionar música" onClick={() => setOpen((o) => !o)}>
         <Icon name="plus" size={18} />
       </button>
       {open && (
         <div className="menu">
-          <div className="menu-title">Adicionar à playlist</div>
+          <div className="menu-title">Adicionar música</div>
           {playlists.map((p) => (
             <button
               key={p.id}
@@ -39,6 +39,15 @@ function AddMenu({ track, onCreatePlaylist }: { track: Track; onCreatePlaylist: 
               {p.trackIds.includes(track.id) ? '  ✓' : ''}
             </button>
           ))}
+          <button
+            className="menu-new"
+            onClick={() => {
+              usePlayer.getState().enqueueNext(track)
+              setOpen(false)
+            }}
+          >
+            Tocar a seguir
+          </button>
           <button
             className="menu-new"
             onClick={() => {

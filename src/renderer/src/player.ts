@@ -3,6 +3,7 @@ import type { Track } from '@shared/types'
 import { HtmlAudioProvider } from './providers/HtmlAudioProvider'
 import { useLibrary } from './library'
 import { recordTaste } from './taste'
+import { insertNext, keepCurrentQueueItem, moveQueueItem, removeQueueItem } from './queue'
 
 export type Repeat = 'off' | 'all' | 'one'
 
@@ -23,6 +24,10 @@ interface PlayerState {
   spectrum(): number[]
   restoreSession(): Promise<void>
   playQueue(tracks: Track[], start: number): void
+  enqueueNext(track: Track): void
+  removeQueueTrack(index: number): void
+  moveQueueTrack(from: number, to: number): void
+  clearUpcoming(): void
   toggle(): void
   next(auto?: boolean): void
   prev(): void
@@ -152,6 +157,42 @@ export const usePlayer = create<PlayerState>((set, get) => {
       if (!tracks.length) return
       set({ queue: tracks })
       void load(Math.min(Math.max(start, 0), tracks.length - 1))
+    },
+
+    enqueueNext(track) {
+      const state = get()
+      if (state.index < 0 || !state.queue.length) {
+        get().playQueue([track], 0)
+        return
+      }
+      set(insertNext(state.queue, state.index, track))
+    },
+
+    removeQueueTrack(removeIndex) {
+      const state = get()
+      const change = removeQueueItem(state.queue, state.index, removeIndex)
+      if (change.queue === state.queue) return
+      if (change.index < 0) {
+        ++token
+        cancelFade()
+        active?.pause()
+        set({ ...change, playing: false, position: 0, duration: 0, error: null })
+        return
+      }
+      set(change)
+      if (removeIndex === state.index) void load(change.index, state.playing)
+    },
+
+    moveQueueTrack(from, to) {
+      const state = get()
+      const change = moveQueueItem(state.queue, state.index, from, to)
+      if (change.queue !== state.queue) set(change)
+    },
+
+    clearUpcoming() {
+      const state = get()
+      const change = keepCurrentQueueItem(state.queue, state.index)
+      if (change.queue.length !== state.queue.length) set(change)
     },
 
     toggle() {

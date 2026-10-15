@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { currentTrack, usePlayer } from '../player'
 import { useLibrary } from '../library'
 import { fmtTime } from '../util'
@@ -13,6 +13,7 @@ export function PlayerBar() {
   const [previousVolume, setPreviousVolume] = useState(0.8)
   const queue = usePlayer((s) => s.queue)
   const currentIndex = usePlayer((s) => s.index)
+  const draggedQueueIndex = useRef<number | null>(null)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setImmersive(false); setQueueOpen(false) }
@@ -120,7 +121,49 @@ export function PlayerBar() {
         <button className="icon-btn" title="Tela cheia imersiva" aria-label="Tela cheia imersiva" onClick={() => setImmersive(true)}><Icon name="expand" size={19}/></button>
       </div>
     </footer>
-    {queueOpen && <aside className="openfy-queue" aria-label="Fila de reprodução"><div className="openfy-queue-head"><strong>Fila de reprodução</strong><button className="icon-btn" title="Fechar fila" onClick={() => setQueueOpen(false)}><Icon name="close"/></button></div><div className="openfy-queue-list">{queue.length ? queue.map((item, i) => <button key={`${item.id}-${i}`} className={'openfy-queue-track' + (i === currentIndex ? ' active' : '')} onClick={() => p().playQueue(queue, i)}>{item.cover && <img src={item.cover} alt="" />}<span><strong>{item.title}</strong><small>{item.artist}</small></span></button>) : <p>Nenhuma música na fila.</p>}</div></aside>}
+    {queueOpen && <aside className="openfy-queue" aria-label="Fila de reprodução">
+      <div className="openfy-queue-head">
+        <strong>Fila de reprodução</strong>
+        <div>
+          <button className="openfy-queue-clear" disabled={currentIndex < 0 || queue.length <= 1} onClick={() => p().clearUpcoming()}>Limpar próximas</button>
+          <button className="icon-btn" title="Fechar fila" onClick={() => setQueueOpen(false)}><Icon name="close"/></button>
+        </div>
+      </div>
+      <div className="openfy-queue-list">
+        {queue.length ? queue.map((item, i) => <div
+          key={`${item.id}-${i}`}
+          className={'openfy-queue-row' + (i === currentIndex ? ' active' : '')}
+          draggable
+          onDragStart={(event) => {
+            draggedQueueIndex.current = i
+            event.dataTransfer.effectAllowed = 'move'
+            event.dataTransfer.setData('text/plain', String(i))
+          }}
+          onDragOver={(event) => {
+            if (draggedQueueIndex.current === null || draggedQueueIndex.current === i) return
+            event.preventDefault()
+            event.dataTransfer.dropEffect = 'move'
+          }}
+          onDrop={(event) => {
+            event.preventDefault()
+            const from = draggedQueueIndex.current ?? Number(event.dataTransfer.getData('text/plain'))
+            if (Number.isInteger(from)) p().moveQueueTrack(from, i)
+            draggedQueueIndex.current = null
+          }}
+          onDragEnd={() => { draggedQueueIndex.current = null }}
+        >
+          <button className="openfy-queue-track" onClick={() => p().playQueue(queue, i)}>
+            {item.cover ? <img src={item.cover} alt="" /> : <span className="openfy-queue-cover">♫</span>}
+            <span><strong>{item.title}</strong><small>{item.artist}{i === currentIndex ? ' · Tocando agora' : ''}</small></span>
+          </button>
+          <div className="openfy-queue-actions">
+            <button aria-label="Mover faixa para cima" title="Mover para cima" disabled={i === 0} onClick={() => p().moveQueueTrack(i, i - 1)}>↑</button>
+            <button aria-label="Mover faixa para baixo" title="Mover para baixo" disabled={i === queue.length - 1} onClick={() => p().moveQueueTrack(i, i + 1)}>↓</button>
+            <button aria-label={`Remover ${item.title} da fila`} title="Remover da fila" onClick={() => p().removeQueueTrack(i)}>×</button>
+          </div>
+        </div>) : <p>Nenhuma música na fila.</p>}
+      </div>
+    </aside>}
     {immersive && <div className="openfy-immersive" role="dialog" aria-modal="true" aria-label="Player imersivo" style={track?.cover ? { ['--immersive-art' as string]: `url("${track.cover.replaceAll('"','%22')}")` } : undefined}><div className="openfy-immersive-bg"/><button className="openfy-immersive-close" title="Fechar modo imersivo (Esc)" onClick={() => setImmersive(false)}><Icon name="close"/> Fechar</button><div className="openfy-immersive-content">{track?.cover ? <img className="openfy-immersive-cover" src={track.cover} alt="Capa do álbum"/> : <div className="openfy-immersive-cover openfy-cover-placeholder"><Icon name="music" size={80}/></div>}<h1>{track?.title || 'Openfy'}</h1><p>{track?.artist || 'Escolha uma música'}</p><div className="openfy-immersive-progress"><span>{fmtTime(shown)}</span><input type="range" min={0} max={duration || 1} step={0.1} value={Math.min(shown, duration || 1)} onChange={e => p().seek(Number(e.target.value))} aria-label="Posição da música"/><span>{fmtTime(duration)}</span></div><div className="openfy-immersive-controls"><button title="Anterior" onClick={() => p().prev()}><Icon name="prev" size={30}/></button><button className="openfy-immersive-play" title={playing ? 'Pausar' : 'Tocar'} onClick={() => p().toggle()}><Icon name={playing ? 'pause' : 'play'} size={32}/></button><button title="Próxima" onClick={() => p().next()}><Icon name="next" size={30}/></button></div><small>OPENFY • Sua música, sua liberdade</small></div></div>}
     </>
   )

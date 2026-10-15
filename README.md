@@ -42,11 +42,25 @@ Espaço = play/pause. Teclas de mídia do teclado funcionam.
 
 Ative em **Configurações → Desktop → Discord Rich Presence** para mostrar no Discord a faixa e o artista reproduzidos no Openfy. O Discord precisa estar aberto, e a exibição da atividade depende das configurações de privacidade do próprio Discord. A integração fica desativada por padrão.
 
+## Comunidade
+
+Entre no [Discord oficial da TK Labs](https://discord.gg/HWgXKfhXAW) para acompanhar o Openfy, trocar ideias e compartilhar sugestões.
+
 ## Atualizações automáticas (Windows)
 
 As versões instaladas no Windows verificam atualizações publicadas em GitHub Releases. A verificação também pode ser iniciada em **Configurações → Desktop**; quando uma atualização é encontrada, o app a baixa e oferece reiniciar para instalar. Versões beta recebem versões beta e estáveis recebem apenas versões estáveis.
 
-Para publicar uma versão Windows, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.1.1-beta.2`) e envie-a ao GitHub. O workflow de release gera o instalador NSIS e publica os arquivos na release correspondente.
+Para publicar uma versão beta Windows, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.1.0-beta.3`) e envie-a ao GitHub. O workflow gera o instalador NSIS e publica uma pré-release visível, com os metadados necessários para o atualizador. A configuração atual está no canal beta; antes da primeira versão estável, altere `build.publish.releaseType` para `release`.
+
+## Fila e backup da biblioteca
+
+Use **Tocar a seguir** no menu de uma faixa para colocá-la depois da música atual. Na fila de reprodução, é possível remover faixas, arrastá-las para reorganizar e limpar as próximas músicas sem interromper a faixa atual.
+
+Em **Configurações → Geral**, exporte ou importe um backup JSON da biblioteca. A importação mescla músicas salvas, favoritos e playlists sem apagar os dados atuais. Backups podem conter caminhos de arquivos locais e capas personalizadas; armazene-os em local privado. O backup guarda os dados da biblioteca, não copia os arquivos de áudio locais.
+
+## Verificações
+
+Execute `npm test` para os testes unitários focados em fila de reprodução, mesclagem/validação de backups e tratamento de falha parcial das fontes. `npm run typecheck` valida os tipos da aplicação.
 
 ## Notas
 - Playlists e músicas salvas ficam em `openfy-data.json` na pasta de dados do app.

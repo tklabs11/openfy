@@ -4,6 +4,7 @@ import { searchAudius, trendingAudius } from './audius'
 import { searchJamendo } from './jamendo'
 import { searchArchive } from './archive'
 import { searchOpenverse } from './openverse'
+import { gatherSourceResults } from './results'
 
 const jamendoId = (): string => (process.env['OPENFY_JAMENDO_CLIENT_ID'] || JAMENDO_CLIENT_ID).trim()
 
@@ -25,25 +26,18 @@ export function mix(lists: Track[][]): Track[] {
   return out
 }
 
-/** Junta os resultados. Só falha se TODAS as fontes ativas falharem. */
-async function gather(jobs: Promise<Track[]>[]): Promise<Track[][]> {
-  const res = await Promise.allSettled(jobs)
-  if (res.length && res.every((r) => r.status === 'rejected')) throw new Error('Sem conexão com as fontes de música.')
-  return res.map((r) => (r.status === 'fulfilled' ? r.value : []))
-}
-
 // Ordem = prioridade na mistura: Audius, Jamendo, Openverse, Internet Archive.
 export async function search(q: string): Promise<Track[]> {
   const id = jamendoId()
   const jobs = [searchAudius(q)]
   if (id) jobs.push(searchJamendo(q, id))
   jobs.push(searchOpenverse(q), searchArchive(q))
-  return mix(await gather(jobs))
+  return mix(await gatherSourceResults(jobs))
 }
 
 export async function featured(): Promise<Track[]> {
   const id = jamendoId()
   const jobs = [trendingAudius()]
   if (id) jobs.push(searchJamendo('', id, { order: 'popularity_week', limit: '20' }))
-  return mix(await gather(jobs)).slice(0, 24)
+  return mix(await gatherSourceResults(jobs)).slice(0, 24)
 }

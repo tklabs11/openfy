@@ -1,6 +1,6 @@
 {
   "name": "openfy",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "Openfy - player de música desktop",
   "main": "./out/main/index.js",
   "author": "TK",
@@ -10,6 +10,7 @@
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "node --test",
     "dist": "electron-vite build && electron-builder",
     "dist:win": "electron-vite build && electron-builder --win nsis"
   },
@@ -60,7 +61,13 @@
     "publish": {
       "provider": "github",
       "owner": "tklabs11",
-      "repo": "openfy"
+      "repo": "openfy",
+      "releaseType": "prerelease",
+      "publishAutoUpdate": true
+    },
+    "releaseInfo": {
+      "releaseName": "Openfy v0.1.0 — Beta 3",
+      "releaseNotes": "## 🎵 Openfy v0.1.0 — Beta 3\n\n### ✨ Novidades\n\n- Adicione músicas à fila com **Tocar a seguir**.\n- Reorganize a fila, remova faixas ou limpe as próximas sem interromper a música atual.\n- Exporte e importe backups JSON de músicas salvas, favoritos e playlists. A importação mescla os dados sem duplicar itens nem substituir a biblioteca atual.\n- A aba **Sobre** agora inclui o convite para o Discord oficial da TK Labs.\n\n### 🔒 Sobre os backups\n\nBackups podem conter caminhos de arquivos locais e capas personalizadas. O arquivo guarda os dados da biblioteca, mas não copia os arquivos de áudio.\n\n### ⚠️ Versão beta\n\nEsta é uma versão de testes. O instalador ainda não possui assinatura digital; baixe-o somente desta página oficial do projeto."
     }
   }
 }

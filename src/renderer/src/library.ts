@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { DEFAULT_DB, type Db, type Playlist, type Settings, type Track } from '@shared/types'
+import { mergeLibraryBackup, type LibraryBackup } from './backup'
 
 interface LibraryState extends Db {
   ready: boolean
@@ -13,6 +14,7 @@ interface LibraryState extends Db {
   removeFromPlaylist(playlistId: string, trackId: string): void
   reorderPlaylistTrack(playlistId: string, fromTrackId: string, toTrackId: string): void
   updateSettings(patch: Partial<Settings>): void
+  mergeBackup(backup: LibraryBackup): { addedTracks: number; addedLikes: number; addedPlaylists: number; updatedPlaylists: number }
 }
 
 let saveTimer: number | undefined
@@ -140,6 +142,18 @@ export const useLibrary = create<LibraryState>((set, get) => {
     updateSettings(patch) {
       set((s) => ({ settings: { ...s.settings, ...patch } }))
       persist()
+    },
+
+    mergeBackup(backup) {
+      const result = mergeLibraryBackup(get(), backup)
+      set(result.db)
+      persist()
+      return {
+        addedTracks: result.addedTracks,
+        addedLikes: result.addedLikes,
+        addedPlaylists: result.addedPlaylists,
+        updatedPlaylists: result.updatedPlaylists
+      }
     }
   }
 })
