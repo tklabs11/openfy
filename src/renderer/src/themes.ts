@@ -1,28 +1,152 @@
 import { useSyncExternalStore } from 'react'
+import { builtInThemes, themeEffects, validateTheme, type Theme } from './theme-model'
 
-export type Theme = { id: string; name: string; author: string; description: string; colors: Record<string, string>; radius: number; density: 'comfortable' | 'compact' }
-const keys = ['bg', 'panel', 'panel2', 'hover', 'line', 'text', 'muted', 'accent', 'danger']
-export const builtInThemes: Theme[] = [
-  { id: 'midnight', name: 'Midnight Blue', author: 'Openfy', description: 'Azul elétrico, grafite e profundidade.', radius: 12, density: 'comfortable', colors: { bg:'#070a12',panel:'#111827',panel2:'#192438',hover:'#25344c',line:'#2b3950',text:'#f5f8ff',muted:'#a3b4cc',accent:'#4d8dff',danger:'#ff6578' } },
-  { id: 'forest', name: 'Forest Pulse', author: 'Openfy', description: 'Verde suave com tons de floresta.', radius: 14, density: 'comfortable', colors: { bg:'#07100e',panel:'#11201b',panel2:'#1b3027',hover:'#274437',line:'#335042',text:'#f0fff5',muted:'#a4c4b4',accent:'#55dfa0',danger:'#ff7c89' } },
-  { id: 'violet', name: 'Neon Violet', author: 'Openfy', description: 'Roxo vibrante com detalhes luminosos.', radius: 16, density: 'comfortable', colors: { bg:'#0d0915',panel:'#1a1326',panel2:'#2a1c3b',hover:'#3c2b53',line:'#4b3862',text:'#fff7ff',muted:'#bdaacb',accent:'#b67aff',danger:'#ff7193' } },
-  { id: 'ember', name: 'Amber Studio', author: 'Openfy', description: 'Laranja quente e visual minimalista.', radius: 9, density: 'compact', colors: { bg:'#100d0b',panel:'#211a16',panel2:'#30251e',hover:'#423126',line:'#59402f',text:'#fff8f0',muted:'#c6ae9a',accent:'#ffb454',danger:'#ff6b6b' } }
-]
+export { builtInThemes, themeEffects, validateTheme } from './theme-model'
+export type { Theme, ThemeBackgroundMode, ThemeDensity, ThemeNeonElement } from './theme-model'
+
 const storageKey = 'openfy-themes-v1'
-type ThemeState = { active: string; custom: Theme[] }
-function load(): ThemeState { try { const v = JSON.parse(localStorage.getItem(storageKey) || '{}'); return { active: typeof v.active === 'string' ? v.active : 'midnight', custom: Array.isArray(v.custom) ? v.custom.filter(validTheme) : [] } } catch { return { active:'midnight', custom:[] } } }
-let state: ThemeState = load()
-const listeners = new Set<() => void>()
-function emit() { localStorage.setItem(storageKey, JSON.stringify(state)); applyTheme(); listeners.forEach(fn => fn()) }
-function validTheme(v: unknown): v is Theme { if (!v || typeof v !== 'object') return false; const t = v as Theme; return typeof t.id === 'string' && typeof t.name === 'string' && typeof t.author === 'string' && typeof t.description === 'string' && typeof t.radius === 'number' && (t.density === 'comfortable' || t.density === 'compact') && !!t.colors && keys.every(k => typeof t.colors[k] === 'string' && /^#[0-9a-fA-F]{6}$/.test(t.colors[k])) }
-export function applyTheme() { const theme = [...builtInThemes, ...state.custom].find(t => t.id === state.active) || builtInThemes[0]; for (const k of keys) document.documentElement.style.setProperty(`--${k}`, theme.colors[k]); document.documentElement.style.setProperty('--radius', `${theme.radius}px`); document.documentElement.dataset.density = theme.density }
-export const themeStore = {
-  subscribe: (fn: () => void) => { listeners.add(fn); return () => listeners.delete(fn) },
-  getSnapshot: () => state,
-  setActive: (active: string) => { state = { ...state, active }; emit() },
-  save: (theme: Theme) => { if (!validTheme(theme)) throw new Error('Tema inválido'); state = { active:theme.id, custom:[...state.custom.filter(t => t.id !== theme.id), theme] }; emit() },
-  remove: (id: string) => { state = { active: state.active === id ? 'midnight' : state.active, custom:state.custom.filter(t => t.id !== id) }; emit() },
-  importTheme: (raw: string) => { const parsed: unknown = JSON.parse(raw); if (!validTheme(parsed)) throw new Error('Arquivo de tema inválido'); const theme = { ...parsed, id:`community-${Date.now()}`, name:parsed.name.slice(0,60), author:parsed.author.slice(0,60), description:parsed.description.slice(0,180), radius:Math.max(4,Math.min(24,parsed.radius)) }; themeStore.save(theme) }
+type ThemeState = {
+  active: string
+  custom: Theme[]
+  advancedEffectsEnabled: boolean
+  lightweightMode: boolean
 }
-export function useThemes() { return useSyncExternalStore(themeStore.subscribe, themeStore.getSnapshot) }
+
+const defaults: ThemeState = { active: 'midnight', custom: [], advancedEffectsEnabled: true, lightweightMode: false }
+function load(): ThemeState {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(storageKey) || '{}')
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return { ...defaults }
+    const stored = value as Record<string, unknown>
+    const custom = Array.isArray(stored.custom) ? stored.custom.filter(validateTheme) : []
+    if (Array.isArray(stored.custom) && custom.length !== stored.custom.length) {
+      console.warn('[Openfy] Temas locais inválidos foram ignorados ao carregar a galeria.')
+    }
+    const active = typeof stored.active === 'string' ? stored.active : defaults.active
+    return {
+      active: [...builtInThemes, ...custom].some(theme => theme.id === active) ? active : defaults.active,
+      custom,
+      advancedEffectsEnabled: stored.advancedEffectsEnabled !== false,
+      lightweightMode: stored.lightweightMode === true
+    }
+  } catch (error) {
+    console.warn('[Openfy] Preferências de tema inválidas; usando valores padrão:', error)
+    return { ...defaults }
+  }
+}
+
+let state: ThemeState = load()
+let previewTheme: Theme | null = null
+const listeners = new Set<() => void>()
+const themeRoot = (): HTMLElement => document.documentElement
+
+function selectedTheme(): Theme {
+  return previewTheme ?? [...builtInThemes, ...state.custom].find(theme => theme.id === state.active) ?? builtInThemes[0]
+}
+
+export function applyTheme(): void {
+  const root = themeRoot()
+  const theme = selectedTheme()
+  const effects = themeEffects(theme)
+  const effectsEnabled = state.advancedEffectsEnabled && !state.lightweightMode
+  for (const [key, value] of Object.entries(theme.colors)) root.style.setProperty(`--${key}`, value)
+  root.style.setProperty('--radius', `${theme.radius}px`)
+  root.style.setProperty('--theme-glass-blur', `${effectsEnabled && effects.glass.enabled ? effects.glass.blur : 0}px`)
+  root.style.setProperty('--theme-glass-opacity', `${effectsEnabled && effects.glass.enabled ? effects.glass.opacity : 100}%`)
+  root.style.setProperty('--theme-glass-border', `${effectsEnabled && effects.glass.enabled ? effects.glass.border : 0}%`)
+  root.style.setProperty('--theme-neon-color', effects.neon.color)
+  root.style.setProperty('--theme-neon-shadow', `${effectsEnabled && effects.neon.enabled ? Math.round(effects.neon.intensity * 0.32) : 0}px`)
+  root.style.setProperty('--theme-neon-panel-shadow', `${effectsEnabled && effects.neon.enabled ? Math.round(effects.neon.intensity * 0.11) : 0}px`)
+  root.style.setProperty('--theme-neon-hover-shadow', `${effectsEnabled && effects.neon.enabled ? Math.round(effects.neon.intensity * 0.32 + 8) : 0}px`)
+  root.style.setProperty('--theme-pulse-color', effects.neon.enabled ? effects.neon.color : theme.colors.accent)
+  root.style.setProperty('--theme-pulse-shadow', `${effectsEnabled && effects.animations.pulse ? Math.round(effects.animations.intensity * 0.2) : 0}px`)
+  root.style.setProperty('--theme-pulse-hover-shadow', `${effectsEnabled && effects.animations.pulse ? Math.round(effects.animations.intensity * 0.2 + 5) : 0}px`)
+  root.style.setProperty('--theme-background-blur', `${effectsEnabled ? effects.background.blur : 0}px`)
+  root.style.setProperty('--theme-background-dim', `${(effectsEnabled ? effects.background.dim : 65) / 100}`)
+  root.style.setProperty('--theme-transition-duration', `${effectsEnabled && effects.animations.transitions && !effects.animations.reduceMotion ? Math.round(240 * effects.animations.intensity / 100) : 0}ms`)
+  root.style.setProperty('--theme-background-transition', `${effectsEnabled && effects.animations.transitions && !effects.animations.reduceMotion ? Math.round(700 * effects.animations.intensity / 100) : 0}ms`)
+  root.style.setProperty('--theme-pulse-duration', `${Math.round(2800 - effects.animations.intensity * 8)}ms`)
+  root.dataset.density = theme.density
+  root.dataset.glass = String(effectsEnabled && effects.glass.enabled)
+  root.dataset.glassReflection = String(effectsEnabled && effects.glass.enabled && effects.glass.reflection)
+  root.dataset.neonProgress = String(effectsEnabled && effects.neon.enabled && effects.neon.elements.includes('progress'))
+  root.dataset.neonControls = String(effectsEnabled && effects.neon.enabled && effects.neon.elements.includes('controls'))
+  root.dataset.neonPanels = String(effectsEnabled && effects.neon.enabled && effects.neon.elements.includes('panels'))
+  root.dataset.neonActive = String(effectsEnabled && effects.neon.enabled && effects.neon.elements.includes('active'))
+  root.dataset.themePulse = String(effectsEnabled && effects.animations.pulse && !effects.animations.reduceMotion)
+  root.dataset.themeReduceMotion = String(effects.animations.reduceMotion || state.lightweightMode)
+  root.dataset.backgroundMode = effectsEnabled ? effects.background.mode : 'solid'
+  root.style.setProperty('--theme-background-position', effects.background.position)
+  root.style.setProperty('--theme-background-fit', effects.background.fit)
+}
+
+function emit(persist = true): void {
+  if (persist) {
+    localStorage.setItem(storageKey, JSON.stringify({
+      active: state.active,
+      custom: state.custom,
+      advancedEffectsEnabled: state.advancedEffectsEnabled,
+      lightweightMode: state.lightweightMode
+    }))
+  }
+  applyTheme()
+  listeners.forEach(listener => listener())
+}
+
+export const themeStore = {
+  subscribe: (listener: () => void) => {
+    listeners.add(listener)
+    return () => listeners.delete(listener)
+  },
+  getSnapshot: () => state,
+  getCurrentTheme: selectedTheme,
+  setActive: (active: string) => {
+    if (![...builtInThemes, ...state.custom].some(theme => theme.id === active)) throw new Error('Tema não encontrado')
+    previewTheme = null
+    state = { ...state, active }
+    emit()
+  },
+  setPreview: (theme: Theme | null) => {
+    if (theme && !validateTheme(theme)) throw new Error('Tema inválido')
+    previewTheme = theme
+    state = { ...state }
+    emit(false)
+  },
+  setAdvancedEffectsEnabled: (enabled: boolean) => {
+    state = { ...state, advancedEffectsEnabled: enabled }
+    emit()
+  },
+  setLightweightMode: (enabled: boolean) => {
+    state = { ...state, lightweightMode: enabled }
+    emit()
+  },
+  save: (theme: Theme) => {
+    if (!validateTheme(theme)) throw new Error('Tema inválido')
+    previewTheme = null
+    state = { ...state, active: theme.id, custom: [...state.custom.filter(item => item.id !== theme.id), theme] }
+    emit()
+  },
+  remove: (id: string) => {
+    previewTheme = null
+    state = { ...state, active: state.active === id ? 'midnight' : state.active, custom: state.custom.filter(theme => theme.id !== id) }
+    emit()
+  },
+  importTheme: (raw: string) => {
+    const parsed: unknown = JSON.parse(raw)
+    if (!validateTheme(parsed)) throw new Error('Arquivo de tema inválido ou incompatível')
+    const theme: Theme = {
+      ...parsed,
+      id: `community-${crypto.randomUUID()}`,
+      name: parsed.name.trim(),
+      author: parsed.author.trim(),
+      description: parsed.description.trim()
+    }
+    themeStore.save(theme)
+  }
+}
+
+export function useThemes(): ThemeState {
+  return useSyncExternalStore(themeStore.subscribe, themeStore.getSnapshot)
+}
+
 applyTheme()

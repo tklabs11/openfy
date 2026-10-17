@@ -1,6 +1,6 @@
 {
   "name": "openfy",
-  "version": "0.1.0-beta.3",
+  "version": "0.2.0-beta.1",
   "description": "Openfy - player de música desktop",
   "main": "./out/main/index.js",
   "author": "TK",
@@ -66,8 +66,8 @@
       "publishAutoUpdate": true
     },
     "releaseInfo": {
-      "releaseName": "Openfy v0.1.0 — Beta 3",
-      "releaseNotes": "## 🎵 Openfy v0.1.0 — Beta 3\n\n### ✨ Novidades\n\n- Adicione músicas à fila com **Tocar a seguir**.\n- Reorganize a fila, remova faixas ou limpe as próximas sem interromper a música atual.\n- Exporte e importe backups JSON de músicas salvas, favoritos e playlists. A importação mescla os dados sem duplicar itens nem substituir a biblioteca atual.\n- A aba **Sobre** agora inclui o convite para o Discord oficial da TK Labs.\n\n### 🔒 Sobre os backups\n\nBackups podem conter caminhos de arquivos locais e capas personalizadas. O arquivo guarda os dados da biblioteca, mas não copia os arquivos de áudio.\n\n### ⚠️ Versão beta\n\nEsta é uma versão de testes. O instalador ainda não possui assinatura digital; baixe-o somente desta página oficial do projeto."
+      "releaseName": "Openfy v0.2.0-beta.1 — UNLEASHED - Theme engine 2.0",
+      "releaseNotes": "## 🎨 Openfy v0.2.0-beta.1 — UNLEASHED - Theme engine 2.0\n\n### ✨ Personalização visual\n\n- Evoluímos o editor de temas com prévia em tempo real e controles para vidro, neon, fundos e animações.\n- Adicionamos os temas demonstrativos **Openfy Glass**, **Openfy Neon Pulse** e **Openfy Ambient**.\n- Escolha uma cor sólida, uma imagem local persistente ou a capa da música como plano de fundo.\n- Ajuste desfoque, transparência, brilho, intensidade e movimento; use **Modo leve** para reduzir os efeitos.\n- Edite um tema personalizado sem gerar cópias: escolha salvar no próprio tema, em outro tema ou como um novo.\n- Temas antigos continuam compatíveis, e temas oficiais não são sobrescritos.\n\n### 🛠️ Correções e compatibilidade\n\n- Corrigimos problemas de layout ao abrir configurações e expandir o painel da música.\n- Melhoramos a abertura e a estabilidade do editor de temas.\n- Temas importados são validados; não aceitamos CSS, JavaScript ou URLs de imagem arbitrárias.\n\n### ⚠️ Versão beta\n\nEsta é uma versão de testes. O instalador ainda não possui assinatura digital; baixe-o somente desta página oficial do projeto."
     }
   }
 }

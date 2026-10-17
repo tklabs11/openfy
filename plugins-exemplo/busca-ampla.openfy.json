@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "pessoal.busca-ampla",
+  "name": "Busca ampla (uso pessoal)",
+  "version": "1.0.0",
+  "author": "Uso pessoal",
+  "description": "Tira o filtro de licença Creative Commons da busca do Internet Archive, mostrando também áudio com direitos reservados. Ao desativar, a busca volta a mostrar só licenças abertas.",
+  "kind": "integration",
+  "permissions": ["search.configure"],
+  "effects": [{ "type": "search.archive-license-filter", "value": "off" }]
+}

@@ -1,12 +1,9 @@
-import type { Track } from '../../shared/types'
-import { JAMENDO_CLIENT_ID } from '../../shared/config'
-import { searchAudius, trendingAudius } from './audius'
-import { searchJamendo } from './jamendo'
+import type { SearchOptions, SearchPage, Track } from '../../shared/types'
 import { searchArchive } from './archive'
-import { searchOpenverse } from './openverse'
 import { gatherSourceResults } from './results'
-
-const jamendoId = (): string => (process.env['OPENFY_JAMENDO_CLIENT_ID'] || JAMENDO_CLIENT_ID).trim()
+import { filterByQuery, queryTokens } from './archive-rank'
+import { searchYouTube } from './youtube'
+import { getYoutubeKey } from '../youtube-key'
 
 /** Intercala as listas (1º de cada fonte, 2º de cada fonte...) e remove duplicatas. */
 export function mix(lists: Track[][]): Track[] {
@@ -26,18 +23,27 @@ export function mix(lists: Track[][]): Track[] {
   return out
 }
 
-// Ordem = prioridade na mistura: Audius, Jamendo, Openverse, Internet Archive.
-export async function search(q: string): Promise<Track[]> {
-  const id = jamendoId()
-  const jobs = [searchAudius(q)]
-  if (id) jobs.push(searchJamendo(q, id))
-  jobs.push(searchOpenverse(q), searchArchive(q))
-  return mix(await gatherSourceResults(jobs))
+export const MAX_PAGES = 5
+
+/** Internet Archive é a fonte padrão; YouTube só entra por plugin ativo e com chave salva. */
+export async function searchPage(
+  q: string,
+  options: SearchOptions = { archiveOpenOnly: true }
+): Promise<SearchPage> {
+  const page = Math.min(MAX_PAGES, Math.max(1, Math.floor(options.page ?? 1)))
+  const jobs: Promise<Track[]>[] = [searchArchive(q, options.archiveOpenOnly, page)]
+  if (options.youtube) {
+    jobs.push(getYoutubeKey().then((key) => key ? searchYouTube(q, key, page) : []))
+  }
+  const mixed = mix(await gatherSourceResults(jobs))
+  const tracks = filterByQuery(mixed, queryTokens(q))
+  return { tracks, hasMore: mixed.length > 0 && page < MAX_PAGES }
+}
+
+export async function search(q: string, options: SearchOptions = { archiveOpenOnly: true }): Promise<Track[]> {
+  return (await searchPage(q, options)).tracks
 }
 
 export async function featured(): Promise<Track[]> {
-  const id = jamendoId()
-  const jobs = [trendingAudius()]
-  if (id) jobs.push(searchJamendo('', id, { order: 'popularity_week', limit: '20' }))
-  return mix(await gatherSourceResults(jobs)).slice(0, 24)
+  return []
 }

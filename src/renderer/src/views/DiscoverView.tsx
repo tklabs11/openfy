@@ -4,6 +4,7 @@ import type { Track } from '@shared/types'
 import { TrackList } from '../components/TrackList'
 import { useLibrary } from '../library'
 import { usePlayer } from '../player'
+import { searchTracks } from '../searchTracks'
 
 const genres = [
   { name: 'Eletrônica', query: 'electronic' }, { name: 'Lo-fi', query: 'lofi' },
@@ -20,6 +21,8 @@ export function DiscoverView({ onCreatePlaylist }: { onCreatePlaylist: (track: T
   const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [errorRetry, setErrorRetry] = useState<'catalog' | 'radio' | null>(null)
+  const [catalogRetry, setCatalogRetry] = useState(0)
   const [radio, setRadio] = useState(false)
   const [seed, setSeed] = useState('')
   const favorites = useMemo(() => saved.filter(t => liked.includes(t.id)), [liked, saved])
@@ -28,28 +31,32 @@ export function DiscoverView({ onCreatePlaylist }: { onCreatePlaylist: (track: T
   }, [saved, tracks])
   useEffect(() => {
     let alive = true
-    setLoading(true); setError(''); setTracks([])
-    window.api.search(genre.query).then(result => { if (alive) setTracks(uniq(result)) })
-      .catch(() => { if (alive) setError('Não foi possível consultar o catálogo. Verifique sua conexão.') })
+    setLoading(true); setError(''); setErrorRetry(null); setTracks([])
+    searchTracks(genre.query).then(result => { if (alive) setTracks(uniq(result)) })
+      .catch(() => { if (alive) { setError('Não foi possível consultar o catálogo. Verifique sua conexão e tente novamente.'); setErrorRetry('catalog') } })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [genre])
+  }, [genre, catalogRetry])
   const playRadio = async () => {
-    setRadio(true); setError('')
+    setRadio(true); setError(''); setErrorRetry(null)
     try {
-      const related = seed.trim() ? await window.api.search(seed.trim()) : []
+      const related = seed.trim() ? await searchTracks(seed.trim()) : []
       const queue = uniq([...related, ...tracks, ...favorites]).filter(t => !!t.uri)
-      if (!queue.length) { setError('Nenhuma faixa disponível para esta rádio.'); return }
+      if (!queue.length) { setError('Nenhuma faixa disponível para esta rádio. Tente outro artista ou estilo.'); setErrorRetry('radio'); return }
       usePlayer.getState().playQueue(queue, 0)
-    } catch { setError('Não foi possível montar a rádio agora.') }
+    } catch { setError('Não foi possível montar a rádio. Verifique sua conexão e tente novamente.'); setErrorRetry('radio') }
     finally { setRadio(false) }
+  }
+  const retryError = (): void => {
+    if (errorRetry === 'catalog') setCatalogRetry((value) => value + 1)
+    else if (errorRetry === 'radio') void playRadio()
   }
   return <section className="page discover-page">
     <div className="discovery-hero"><div className="discovery-eyebrow">OPENFY • MUSIC DISCOVERY</div><h1>Descubra seu próximo som.</h1><p>Explore faixas dos catálogos conectados e crie sua própria rádio.</p></div>
     <h2 className="shelf-title">Explore por estilo</h2>
     <div className="genre-grid">{genres.map((g,i) => <button key={g.name} className={'genre-card'+(genre.name===g.name?' selected':'')} style={{ '--genre-hue': `${195+i*23}` } as CSSProperties} onClick={() => setGenre(g)}><span>♫</span>{g.name}</button>)}</div>
     <div className="radio-panel"><div><div className="discovery-eyebrow">OPENFY RADIO</div><h2>Uma rádio com a sua vibe</h2><p>Comece pelo gênero selecionado ou digite um artista/estilo para buscar faixas relacionadas.</p></div><div className="radio-actions"><input value={seed} onChange={e=>setSeed(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')void playRadio()}} placeholder="Artista ou estilo (opcional)"/><button disabled={radio||loading} onClick={()=>void playRadio()}>{radio?'Preparando…':'▶ Iniciar rádio'}</button></div></div>
-    {error && <p className="discovery-error" role="alert">{error}</p>}
+    {error && <div className="discovery-error" role="alert"><p>{error}</p>{errorRetry && <button className="settings-action" disabled={radio || loading} onClick={retryError}>Tentar novamente</button>}</div>}
     <h2 className="shelf-title">{genre.name} · músicas disponíveis</h2>
     {loading ? <p className="empty">Buscando músicas…</p> : tracks.length ? <TrackList tracks={tracks} onCreatePlaylist={onCreatePlaylist}/> : <p className="empty">Nenhuma faixa encontrada neste estilo.</p>}
     {favorites.length > 0 && <><h2 className="shelf-title">Suas favoritas</h2><TrackList tracks={favorites.slice(0,10)} onCreatePlaylist={onCreatePlaylist}/></>}

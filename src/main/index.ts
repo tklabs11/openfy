@@ -5,8 +5,13 @@ import { promises as fs } from 'fs'
 import { basename, extname, join } from 'path'
 import { existsSync, readFileSync, mkdirSync } from 'fs'
 import { pathToFileURL } from 'url'
-import { DEFAULT_DB, type Db, type DesktopPreferences, type MediaKey, type Track } from '../shared/types'
-import { search, featured } from './sources'
+import { DEFAULT_DB, type Db, type DesktopPreferences, type MediaKey, type SearchOptions, type Track } from '../shared/types'
+import { search, searchPage, featured, MAX_PAGES } from './sources'
+import { getLyrics } from './lyrics'
+import { findLocalCover } from './local-covers'
+import { checkYouTubeKey, youtubeLastError } from './sources/youtube'
+import { clearYoutubeKey, getYoutubeKey, setYoutubeKey } from './youtube-key'
+import { isKeyShape } from '../shared/youtube'
 import { discordPresence } from './discordPresence'
 import { appUpdates } from './updates'
 
@@ -44,6 +49,9 @@ if (!hasInstanceLock) {
 }
 
 const SCHEME = 'openfy-file'
+const THEME_SCHEME = 'openfy-theme'
+const THEME_IMAGE_MAX_BYTES = 12 * 1024 * 1024
+const themeBackgroundDir = (): string => join(app.getPath('userData'), 'theme-backgrounds')
 const desktopPrefsPath = (): string => join(app.getPath('userData'), 'desktop-preferences.json')
 let desktopPrefs: DesktopPreferences = { minimizeToTray: false, notifications: false, discordPresence: false }
 let tray: Tray | null = null
@@ -96,11 +104,11 @@ const AUDIO_EXT = new Set(['.mp3', '.flac', '.wav', '.ogg', '.oga', '.m4a', '.aa
 
 const PROD_CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' https://www.youtube.com https://s.ytimg.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
+  "img-src 'self' data: https: openfy-theme:",
   "media-src 'self' openfy-file: https:",
-  "frame-src 'none'",
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
   "connect-src 'self' https:"
 ].join('; ')
 
@@ -108,12 +116,16 @@ protocol.registerSchemesAsPrivileged([
   {
     scheme: SCHEME,
     privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, bypassCSP: true }
+  },
+  {
+    scheme: THEME_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true }
   }
 ])
 
 const dbPath = (): string => join(app.getPath('userData'), 'openfy-data.json')
 
-const KNOWN_SOURCES = new Set(['local', 'audius', 'jamendo', 'archive', 'openverse'])
+const KNOWN_SOURCES = new Set(['local', 'audius', 'jamendo', 'archive', 'openverse', 'librivox', 'youtube'])
 
 async function readDb(): Promise<Db> {
   try {
@@ -139,7 +151,8 @@ async function readDb(): Promise<Db> {
       liked,
       playlists,
       settings: {
-        volume: typeof raw.settings?.volume === 'number' ? raw.settings.volume : DEFAULT_DB.settings.volume
+        volume: typeof raw.settings?.volume === 'number' ? raw.settings.volume : DEFAULT_DB.settings.volume,
+        automaticLocalCovers: raw.settings?.automaticLocalCovers === true
       }
     }
   } catch {
@@ -212,10 +225,86 @@ function registerIpc(): void {
     return files.map(trackFromFile)
   })
 
-  ipcMain.handle('api:search', async (_e, q: unknown) => {
-    const query = typeof q === 'string' ? q.trim().slice(0, 100) : ''
-    return query ? search(query) : []
+  ipcMain.handle('theme:pickBackground', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'Escolher imagem de fundo do tema',
+      properties: ['openFile'],
+      filters: [{ name: 'Imagens', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+    })
+    const selectedPath = result.filePaths[0]
+    if (result.canceled || !selectedPath) return null
+
+    const fileStat = await fs.stat(selectedPath)
+    if (fileStat.size <= 0 || fileStat.size > THEME_IMAGE_MAX_BYTES) {
+      throw new Error('A imagem precisa ter até 12 MB.')
+    }
+    const image = await fs.readFile(selectedPath)
+    const isPng = image.length >= 8 && image.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    const isJpeg = image.length >= 3 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff
+    const isWebp = image.length >= 12 && image.toString('ascii', 0, 4) === 'RIFF' && image.toString('ascii', 8, 12) === 'WEBP'
+    const extension = isPng ? 'png' : isJpeg ? 'jpg' : isWebp ? 'webp' : null
+    if (!extension) throw new Error('Formato de imagem não reconhecido. Use PNG, JPEG ou WebP.')
+
+    const hash = createHash('sha256').update(image).digest('hex')
+    await fs.mkdir(themeBackgroundDir(), { recursive: true })
+    await fs.writeFile(join(themeBackgroundDir(), `${hash}.${extension}`), image)
+    return `${THEME_SCHEME}://background/${hash}.${extension}`
   })
+
+  const searchOptions = (opts: unknown): SearchOptions => {
+    const o = opts && typeof opts === 'object' ? (opts as Record<string, unknown>) : {}
+    const page = typeof o.page === 'number' && Number.isFinite(o.page) ? Math.floor(o.page) : 1
+    return {
+      archiveOpenOnly: o.archiveOpenOnly !== false,
+      page: Math.min(MAX_PAGES, Math.max(1, page)),
+      youtube: o.youtube === true
+    }
+  }
+  const searchText = (q: unknown): string => (typeof q === 'string' ? q.trim().slice(0, 100) : '')
+  ipcMain.handle('api:search', async (_e, q: unknown, opts: unknown) => {
+    const query = searchText(q)
+    return query ? search(query, searchOptions(opts)) : []
+  })
+  ipcMain.handle('api:searchPage', async (_e, q: unknown, opts: unknown) => {
+    const query = searchText(q)
+    return query ? searchPage(query, searchOptions(opts)) : { tracks: [], hasMore: false }
+  })
+
+  ipcMain.handle('api:lyrics', (_e, title: unknown, artist: unknown, duration: unknown) => {
+    if (typeof title !== 'string' || !title.trim() || title.length > 300
+      || typeof artist !== 'string' || !artist.trim() || artist.length > 300) {
+      throw new Error('Título ou artista inválido para buscar a letra.')
+    }
+    const validDuration = typeof duration === 'number' && Number.isFinite(duration) && duration > 0
+      ? Math.min(duration, 24 * 60 * 60)
+      : undefined
+    return getLyrics(title.trim(), artist.trim(), validDuration)
+  })
+
+  ipcMain.handle('api:findLocalCover', (_e, title: unknown, artist: unknown) => {
+    if (typeof title !== 'string' || !title.trim() || title.length > 300
+      || typeof artist !== 'string' || artist.length > 300) {
+      throw new Error('Título ou artista inválido para buscar a capa.')
+    }
+    return findLocalCover(title.trim(), artist.trim())
+  })
+
+  ipcMain.handle('youtube:status', async () => ({ hasKey: !!(await getYoutubeKey()), lastError: youtubeLastError() }))
+  ipcMain.handle('youtube:setKey', async (_event, key: unknown) => {
+    const value = typeof key === 'string' ? key.trim() : ''
+    if (!isKeyShape(value)) {
+      return { ok: false, error: 'Formato de chave inválido. Verifique a chave da YouTube Data API v3.' }
+    }
+    const problem = await checkYouTubeKey(value)
+    if (problem) return { ok: false, error: problem }
+    try {
+      await setYoutubeKey(value)
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'Não foi possível salvar a chave.' }
+    }
+  })
+  ipcMain.handle('youtube:clearKey', async () => clearYoutubeKey())
 
   ipcMain.handle('api:featured', () => featured())
 }
@@ -239,9 +328,6 @@ function createWindow(): BrowserWindow {
   })
 
   mainWindow = win
-  win.on('minimize', () => {
-    if (desktopPrefs.minimizeToTray) { setupTray(); win.hide() }
-  })
   win.on('close', (event) => {
     if (!quitting && desktopPrefs.minimizeToTray) { event.preventDefault(); setupTray(); win.hide() }
   })
@@ -291,6 +377,25 @@ if (hasInstanceLock) app.whenReady().then(() => {
     if (!AUDIO_EXT.has(extname(p).toLowerCase())) return new Response('forbidden', { status: 403 })
     return net.fetch(pathToFileURL(p).toString(), { headers: req.headers })
   })
+  protocol.handle(THEME_SCHEME, async (req) => {
+    const url = new URL(req.url)
+    const match = url.hostname === 'background' && /^\/([a-f0-9]{64})\.(png|jpg|webp)$/.exec(url.pathname)
+    if (!match) return new Response('forbidden', { status: 403 })
+    const [, hash, extension] = match
+    const contentType = extension === 'jpg' ? 'image/jpeg' : `image/${extension}`
+    const image = await fs.readFile(join(themeBackgroundDir(), `${hash}.${extension}`))
+    if (createHash('sha256').update(image).digest('hex') !== hash) return new Response('not found', { status: 404 })
+    return new Response(new Uint8Array(image), {
+      headers: { 'Content-Type': contentType, 'Cache-Control': 'public, max-age=31536000, immutable' }
+    })
+  })
+
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://www.youtube.com/*', 'https://www.youtube-nocookie.com/*'] },
+    (details, callback) => callback({
+      requestHeaders: { ...details.requestHeaders, Referer: 'https://github.com/tklabs11/openfy' }
+    })
+  )
 
   session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
     if (app.isPackaged && details.url.startsWith('file://')) {

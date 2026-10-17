@@ -11,6 +11,8 @@ const PATHS: Record<string, string> = {
   repeat: 'M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z',
   volume: 'M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z',
   queue: 'M3 5h18v2H3zM3 11h18v2H3zM3 17h12v2H3zM18 16l4 3-4 3z',
+  panel: 'M3 4h18v16H3zM15 6v12h4V6z',
+  more: 'M5 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
   mute: 'M3 9v6h4l5 5V4L7 9H3zm13 0 5 6m0-6-5 6',
   expand: 'M4 9V4h5v2H6v3zm11-5h5v5h-2V6h-3zM4 15h2v3h3v2H4zm14 0h2v5h-5v-2h3z',
   plus: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',

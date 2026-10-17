@@ -8,15 +8,18 @@ import { clearTaste, setTasteEnabled, tasteEnabled } from '../taste'
 import type { View } from './Sidebar'
 import type { AppUpdateState, DesktopPreferences, DiscordPresenceStatus } from '@shared/types'
 
-interface Props {open:boolean;onClose:()=>void;onNavigate:(view:View)=>void;showNow:boolean;onToggleNow:()=>void}
-export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Props) {
+interface Props {open:boolean;onClose:()=>void;onNavigate:(view:View)=>void;showNow:boolean;panelLocked:boolean;onToggleNow:()=>void}
+export function SettingsDialog({open,onClose,onNavigate,showNow,panelLocked,onToggleNow}:Props) {
   const [desktopPrefs, setDesktopPrefs] = useState<DesktopPreferences>({ minimizeToTray: false, notifications: false, discordPresence: false })
   const [discordStatus, setDiscordStatus] = useState<DiscordPresenceStatus>('disabled')
+  const [desktopSaveError, setDesktopSaveError] = useState('')
   const [fadeSaveError, setFadeSaveError] = useState('')
   const [updateState, setUpdateState] = useState<AppUpdateState>({ status: 'idle' })
   const [backupFeedback, setBackupFeedback] = useState<{ message: string; error?: boolean } | null>(null)
   const backupInput = useRef<HTMLInputElement>(null)
   const fadeSeconds = usePlayer(s => s.fadeSeconds)
+  const automaticLocalCovers = useLibrary(s => s.settings.automaticLocalCovers)
+  const coverLookupNotice = useLibrary(s => s.coverLookupNotice)
   useEffect(() => {
     const unsubscribe = window.api.onDiscordPresenceStatus(setDiscordStatus)
     const unsubscribeUpdates = window.api.onUpdateState(setUpdateState)
@@ -40,12 +43,14 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Pro
   }, [open])
   const updateDesktop = async (key: keyof DesktopPreferences, value: boolean): Promise<void> => {
     const next = { ...desktopPrefs, [key]: value }
+    setDesktopSaveError('')
     setDesktopPrefs(next)
     try {
       await window.api.desktopSetPreferences(next)
     } catch (error) {
       console.error('[Openfy] Não foi possível salvar as preferências da área de trabalho:', error)
       setDesktopPrefs(desktopPrefs)
+      setDesktopSaveError('Não foi possível salvar a preferência. A configuração anterior foi restaurada; tente novamente.')
       if (key === 'discordPresence') setDiscordStatus('error')
     }
   }
@@ -117,23 +122,35 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Pro
     }
   }
   const [personalization,setPersonalization] = useState(tasteEnabled())
-  const [tab,setTab] = useState<'geral'|'audio'|'aparencia'|'mods'|'developer'|'privacidade'|'desktop'|'sobre'>('geral')
+  const [tab,setTab] = useState<'geral'|'audio'|'aparencia'|'developer'|'privacidade'|'desktop'|'sobre'>('geral')
   if (!open) return null
   return <div className="settings-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
     <section className="settings-dialog" role="dialog" aria-modal="true" aria-label="Configurações do Openfy">
       <header className="settings-heading"><div><small>PREFERÊNCIAS</small><h2>Configurações</h2></div><button className="topbar-icon" aria-label="Fechar" onClick={onClose}><Icon name="close"/></button></header>
-      <div className="settings-body"><nav className="settings-tabs">{([['geral','Geral'],['audio','Áudio'],['aparencia','Aparência'],['mods','Mods e extensões'],['developer','Desenvolvedor'],['desktop','Desktop'],['privacidade','Privacidade'],['sobre','Sobre']] as const).map(([id,name])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{name}</button>)}</nav>
+      <div className="settings-body"><nav className="settings-tabs">{([['geral','Geral'],['audio','Áudio'],['aparencia','Aparência'],['developer','Desenvolvedor'],['desktop','Desktop'],['privacidade','Privacidade'],['sobre','Sobre']] as const).map(([id,name])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{name}</button>)}</nav>
       <div className="settings-content">
-        {tab==='geral'&&<><h3>Interface</h3><label className="settings-setting"><div><strong>Painel da música atual</strong><p>Exibir a capa e informações à direita. Você também pode alternar pelo ícone no topo.</p></div><input type="checkbox" checked={showNow} onChange={onToggleNow}/></label><p className="settings-tip">Suas preferências visuais são salvas neste dispositivo.</p>
-          <h3>Backup da biblioteca</h3>
-          <p>Exporte ou restaure músicas salvas, favoritos e playlists. A importação mescla os dados e preserva a biblioteca existente.</p>
-          <p className="settings-tip">O backup pode conter caminhos de arquivos locais e capas personalizadas. Guarde o arquivo em um local privado.</p>
-          <div className="library-backup-actions">
-            <button className="settings-action" onClick={exportLibrary}>Exportar backup</button>
-            <button className="settings-action" onClick={() => backupInput.current?.click()}>Importar e mesclar backup</button>
-            <input ref={backupInput} type="file" accept=".json,application/json" hidden onChange={(event) => { void importLibrary(event.currentTarget.files?.[0]) }} />
-          </div>
-          {backupFeedback && <p className={backupFeedback.error ? 'discovery-error' : 'settings-tip'} role={backupFeedback.error ? 'alert' : 'status'}>{backupFeedback.message}</p>}
+        {tab==='geral'&&<>
+          <section className="settings-group">
+            <h3>Interface</h3>
+            <label className="settings-setting"><div><strong>Painel da música atual</strong><p>{panelLocked ? 'O painel fica aberto enquanto uma faixa do YouTube estiver selecionada para manter o player oficial visível.' : 'Exibir a capa e informações à direita. Você também pode alternar pelo ícone no topo.'}</p></div><input type="checkbox" checked={showNow} disabled={panelLocked} onChange={onToggleNow}/></label>
+          </section>
+          <section className="settings-group">
+            <h3>Biblioteca local</h3>
+            <label className="settings-setting"><div><strong>Buscar capas automaticamente</strong><p>Ao adicionar músicas locais, procurar capas pelo título e artista no catálogo do iTunes. Esses dados são enviados à Apple; a busca pode não encontrar uma correspondência.</p></div><input type="checkbox" checked={automaticLocalCovers} onChange={(event) => useLibrary.getState().updateSettings({ automaticLocalCovers: event.target.checked })}/></label>
+            <p className="settings-tip">Desativada por padrão. Você pode escolher, trocar ou remover capas em Mais ações → Detalhes da faixa.</p>
+            {coverLookupNotice && <div className="settings-feedback" role="status"><p>{coverLookupNotice}</p><button className="settings-action" onClick={() => useLibrary.getState().retryLocalCoverLookups()}>Tentar novamente</button></div>}
+          </section>
+          <section className="settings-group">
+            <h3>Backup da biblioteca</h3>
+            <p>Exporte ou restaure músicas salvas, favoritos e playlists. A importação mescla os dados e preserva a biblioteca existente.</p>
+            <p className="settings-tip">O backup pode conter caminhos de arquivos locais e capas personalizadas. Guarde o arquivo em um local privado.</p>
+            <div className="library-backup-actions">
+              <button className="settings-action" onClick={exportLibrary}>Exportar backup</button>
+              <button className="settings-action" onClick={() => backupInput.current?.click()}>Importar e mesclar backup</button>
+              <input ref={backupInput} type="file" accept=".json,application/json" hidden onChange={(event) => { void importLibrary(event.currentTarget.files?.[0]) }} />
+            </div>
+            {backupFeedback && <p className={backupFeedback.error ? 'discovery-error' : 'settings-tip'} role={backupFeedback.error ? 'alert' : 'status'}>{backupFeedback.message}</p>}
+          </section>
         </>}
         {tab==='privacidade'&&<><h3>Seu gosto é seu</h3><p className="privacy-motto">“Seu gosto musical pertence a você. O Openfy apenas aprende com ele, no seu dispositivo.”</p>
           <label className="settings-setting"><div><strong>Personalizar minha página inicial</strong><p>Aprendizado local baseado no histórico de músicas reproduzidas e concluídas. Não exige conta.</p></div><input type="checkbox" checked={personalization} onChange={e=>{setPersonalization(e.target.checked);setTasteEnabled(e.target.checked)}}/></label>
@@ -161,9 +178,10 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Pro
           <footer className="about-footer">© 2026 TK Labs.</footer>
         </section>}
         {tab==='desktop' && <><h3>Integração com desktop</h3>
-          <label className="settings-setting"><div><strong>Minimizar para a bandeja</strong><p>Ao minimizar ou fechar a janela, manter o Openfy na área de notificação. Use o menu do ícone para sair completamente.</p></div><input type="checkbox" checked={desktopPrefs.minimizeToTray} onChange={e => void updateDesktop('minimizeToTray', e.target.checked)}/></label>
+          <label className="settings-setting"><div><strong>Fechar para a bandeja</strong><p>O botão de minimizar mantém o Openfy na barra de tarefas. Ao fechar pelo X, o app fica na área de notificação; use o menu do ícone para sair completamente.</p></div><input type="checkbox" checked={desktopPrefs.minimizeToTray} onChange={e => void updateDesktop('minimizeToTray', e.target.checked)}/></label>
           <label className="settings-setting"><div><strong>Notificações de músicas</strong><p>Mostrar uma notificação ao começar uma faixa diferente.</p></div><input type="checkbox" checked={desktopPrefs.notifications} onChange={e => void updateDesktop('notifications', e.target.checked)}/></label>
           <label className="settings-setting"><div><strong>Discord Rich Presence</strong><p>Mostrar no seu perfil do Discord a música que está tocando no Openfy. O Discord precisa estar aberto com o status de atividade habilitado.</p></div><input type="checkbox" checked={desktopPrefs.discordPresence} onChange={e => void updateDesktop('discordPresence', e.target.checked)}/></label>
+          {desktopSaveError && <p className="discovery-error" role="alert">{desktopSaveError}</p>}
           <p className="settings-tip" role="status">Discord: {{
             disabled: 'integração desativada',
             connecting: 'conectando…',
@@ -192,7 +210,6 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,onToggleNow}:Pro
           <label className="settings-setting"><div><strong>Fade ao trocar, pausar ou retomar</strong><p>Transição suave de volume. Não é crossfade de duas faixas simultâneas. 0 desativa.</p></div><select className="settings-select" value={fadeSeconds} onChange={e => void updateFadeSeconds(Number(e.target.value))}>{[0,0.5,1,2,3,4,6].map(v=><option key={v} value={v}>{v === 0 ? 'Desativado' : `${v} s`}</option>)}</select></label>{fadeSaveError && <p className="discovery-error" role="alert">{fadeSaveError}</p>}<button className="settings-action" onClick={()=>onNavigate({type:'studio'})}>Abrir Audio Studio →</button><p className="settings-tip">Faixas online com restrições CORS continuam usando reprodução direta para evitar silêncio. O processamento depende da autorização da fonte.</p></>}
         {tab==='aparencia'&&<><h3>Seu Openfy, seu estilo</h3><p>Altere skins, cores e detalhes de aparência sem interromper a reprodução.</p><button className="settings-action" onClick={()=>onNavigate({type:'themes'})}>Personalizar temas →</button></>}
         {tab==='developer'&&<><h3>Developer Mode</h3><p>Crie e valide manifestos de plugins, com exportação e importação de arquivos JSON. Sem execução de código externo.</p><button className="settings-action" onClick={()=>onNavigate({type:'developer'})}>Abrir Developer Mode →</button></>}
-        {tab==='mods'&&<><h3>Mod Hub</h3><p>Gerencie temas e extensões instaladas em um só lugar.</p><button className="settings-action" onClick={()=>onNavigate({type:'modhub'})}>Abrir Mod Hub →</button></>}
       </div></div>
     </section>
   </div>

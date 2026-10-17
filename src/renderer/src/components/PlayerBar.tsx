@@ -72,7 +72,7 @@ export function PlayerBar() {
           <button className="icon-btn" title="Anterior" onClick={() => p().prev()}>
             <Icon name="prev" size={24} />
           </button>
-          <button className="play-btn" title={playing ? 'Pausar' : 'Tocar'} onClick={() => p().toggle()}>
+          <button className={'play-btn' + (playing ? ' is-playing' : '')} title={playing ? 'Pausar' : 'Tocar'} onClick={() => p().toggle()}>
             <Icon name={playing ? 'pause' : 'play'} size={24} />
           </button>
           <button className="icon-btn" title="Próxima" onClick={() => p().next()}>

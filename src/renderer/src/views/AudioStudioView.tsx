@@ -9,7 +9,7 @@ const presets: Record<string, number[]> = {
   Rock: [4,3,1,-1,-2,0,2,3,4,3],
   Vocal: [-2,-1,0,2,4,4,3,1,0,-1]
 }
-function Spectrum({ small=false }: {small?: boolean}) {
+function Spectrum() {
   const playing = usePlayer(s=>s.playing)
   const [values,setValues] = useState<number[]>(Array(40).fill(0))
   useEffect(()=>{
@@ -17,7 +17,7 @@ function Spectrum({ small=false }: {small?: boolean}) {
     const timer = window.setInterval(()=>setValues(usePlayer.getState().spectrum()),90)
     return ()=>window.clearInterval(timer)
   },[playing])
-  return <div className={'spectrum'+(small?' spectrum-small':'')} aria-label="Visualizador de espectro de áudio">{values.map((v,i)=><span key={i} style={{height:`${Math.max(5,Math.round(v*100))}%`}}/>)}</div>
+  return <div className="spectrum" aria-label="Visualizador de espectro de áudio">{values.map((v,i)=><span key={i} style={{height:`${Math.max(5,Math.round(v*100))}%`}}/>)}</div>
 }
 export function AudioStudioView() {
   const gains = usePlayer(s=>s.eqGains)
@@ -30,11 +30,4 @@ export function AudioStudioView() {
     <p className="discovery-note">Ajustes salvos neste dispositivo. Para streams de terceiros, as políticas de CORS podem impedir processamento ou visualização do áudio; nesse caso, teste uma faixa local.</p></div>
     <div className="studio-panel"><div className="studio-header"><h2>Visualizador</h2><label className="studio-toggle"><input type="checkbox" checked={visualizer} onChange={e=>{setVisualizer(e.target.checked);localStorage.setItem('openfy-visualizer',e.target.checked?'on':'off')}}/> Ativado</label></div>{visualizer?<Spectrum/>:<p className="empty">Visualizador desativado.</p>}<p className="discovery-note">{track?`Reproduzindo: ${track.title} — ${track.artist}`:'Dê play em uma música para visualizar o espectro.'}</p></div>
   </section>
-}
-export function MiniPlayer() {
-  const [open,setOpen] = useState(false)
-  const track = usePlayer(currentTrack)
-  const playing = usePlayer(s=>s.playing)
-  if (!track) return null
-  return <><button className="mini-launch" onClick={()=>setOpen(!open)} title="Mini player flutuante">{open?'✕ Fechar mini player':'▣ Mini player'}</button>{open&&<div className="mini-floating"><div className="mini-grip">OPENFY · MINI PLAYER <button onClick={()=>setOpen(false)} aria-label="Fechar">✕</button></div><div className="mini-body">{track.cover?<img src={track.cover} alt=""/>:<div className="mini-cover">♫</div>}<div className="mini-info"><strong>{track.title}</strong><span>{track.artist}</span></div></div><div className="mini-controls"><button onClick={()=>usePlayer.getState().prev()}>⏮</button><button onClick={()=>usePlayer.getState().toggle()}>{playing?'⏸':'▶'}</button><button onClick={()=>usePlayer.getState().next()}>⏭</button></div><Spectrum small/></div>}</>
 }

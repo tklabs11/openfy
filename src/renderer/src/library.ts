@@ -4,6 +4,7 @@ import { mergeLibraryBackup, type LibraryBackup } from './backup'
 
 interface LibraryState extends Db {
   ready: boolean
+  coverLookupNotice: string | null
   init(): Promise<void>
   likeTracks(tracks: Track[]): void
   toggleLike(track: Track): void
@@ -14,6 +15,8 @@ interface LibraryState extends Db {
   removeFromPlaylist(playlistId: string, trackId: string): void
   reorderPlaylistTrack(playlistId: string, fromTrackId: string, toTrackId: string): void
   updateSettings(patch: Partial<Settings>): void
+  updateTrackCover(trackId: string, cover: string | undefined, onlyIfMissing?: boolean): void
+  retryLocalCoverLookups(): void
   mergeBackup(backup: LibraryBackup): { addedTracks: number; addedLikes: number; addedPlaylists: number; updatedPlaylists: number }
 }
 
@@ -31,14 +34,78 @@ export const useLibrary = create<LibraryState>((set, get) => {
     const ids = new Set(existing.map((t) => t.id))
     return [...existing, ...incoming.filter((t) => !ids.has(t.id))]
   }
+  const coverQueue: Track[] = []
+  const queuedCoverIds = new Set<string>()
+  let coverLookupRunning = false
+  let coverRetryTimer: number | undefined
+  const enqueueAutomaticCoverLookups = (tracks: Track[] = get().tracks): void => {
+    if (!get().settings.automaticLocalCovers) return
+    for (const track of tracks) {
+      if (track.source !== 'local' || track.cover || track.coverLookupAttempted || queuedCoverIds.has(track.id)) continue
+      queuedCoverIds.add(track.id)
+      coverQueue.push(track)
+    }
+    void processCoverLookups()
+  }
+  const processCoverLookups = async (): Promise<void> => {
+    if (coverLookupRunning || !coverQueue.length) return
+    coverLookupRunning = true
+    try {
+      while (coverQueue.length) {
+        const state = get()
+        if (!state.settings.automaticLocalCovers) {
+          coverQueue.length = 0
+          queuedCoverIds.clear()
+          break
+        }
+        const candidate = coverQueue.shift()
+        if (!candidate) continue
+        queuedCoverIds.delete(candidate.id)
+        const track = state.tracks.find((item) => item.id === candidate.id)
+        if (!track || track.source !== 'local' || track.cover || track.coverLookupAttempted) continue
+        try {
+          const result = await window.api.findLocalCover(track.title, track.artist)
+          if (!get().settings.automaticLocalCovers) continue
+          if (result.status === 'found') {
+            set({ coverLookupNotice: null })
+            get().updateTrackCover(track.id, result.cover, true)
+          } else if (result.status === 'not-found') {
+            set({ coverLookupNotice: null })
+            get().updateTrackCover(track.id, undefined, true)
+          } else if (result.status === 'rate-limited') {
+            coverQueue.unshift(track)
+            queuedCoverIds.add(track.id)
+            set({ coverLookupNotice: `O catálogo limitou as buscas. A tentativa será retomada em cerca de ${Math.ceil(result.retryAfterMs / 60_000)} minuto(s).` })
+            coverRetryTimer = window.setTimeout(() => {
+              coverRetryTimer = undefined
+              void processCoverLookups()
+            }, result.retryAfterMs)
+            return
+          } else {
+            set({ coverLookupNotice: result.message })
+            coverQueue.length = 0
+            queuedCoverIds.clear()
+            console.warn(`[Openfy] Busca automática de capas pausada: ${result.message}`)
+            return
+          }
+        } catch (error) {
+          console.warn(`[Openfy] Falha inesperada ao localizar capa para "${track.title}":`, error)
+        }
+      }
+    } finally {
+      coverLookupRunning = false
+    }
+  }
 
   return {
     ...structuredClone(DEFAULT_DB),
     ready: false,
+    coverLookupNotice: null,
 
     async init() {
       const db = await window.api.loadDb()
       set({ ...db, ready: true })
+      enqueueAutomaticCoverLookups(db.tracks)
     },
 
     likeTracks(tracks) {
@@ -47,6 +114,7 @@ export const useLibrary = create<LibraryState>((set, get) => {
         return { tracks: merge(s.tracks, tracks), liked: [...s.liked, ...tracks.map((t) => t.id).filter((id) => !have.has(id))] }
       })
       persist()
+      enqueueAutomaticCoverLookups(tracks)
     },
 
     toggleLike(track) {
@@ -142,12 +210,37 @@ export const useLibrary = create<LibraryState>((set, get) => {
     updateSettings(patch) {
       set((s) => ({ settings: { ...s.settings, ...patch } }))
       persist()
+      if (patch.automaticLocalCovers === true) enqueueAutomaticCoverLookups()
+      if (patch.automaticLocalCovers === false) {
+        if (coverRetryTimer !== undefined) window.clearTimeout(coverRetryTimer)
+        coverRetryTimer = undefined
+        coverQueue.length = 0
+        queuedCoverIds.clear()
+        set({ coverLookupNotice: null })
+      }
+    },
+
+    retryLocalCoverLookups() {
+      set({ coverLookupNotice: null })
+      enqueueAutomaticCoverLookups()
+    },
+
+    updateTrackCover(trackId, cover, onlyIfMissing = false) {
+      set((s) => ({
+        tracks: s.tracks.map((track) => track.id === trackId
+          ? onlyIfMissing && track.cover
+            ? track
+            : { ...track, cover, coverLookupAttempted: true }
+          : track)
+      }))
+      persist()
     },
 
     mergeBackup(backup) {
       const result = mergeLibraryBackup(get(), backup)
       set(result.db)
       persist()
+      enqueueAutomaticCoverLookups(backup.tracks)
       return {
         addedTracks: result.addedTracks,
         addedLikes: result.addedLikes,

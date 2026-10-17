@@ -5,13 +5,13 @@ Este projeto não raspa plataformas proprietárias e não inclui ferramentas de 
 
 | Fonte | Uso no Openfy | Chave | Observações |
 |-------|---------------|-------|-------------|
-| Audius | Busca, tendências e stream completo | Não | Rede aberta. O app informa `app_name=Openfy`. Cada artista define as condições da própria faixa. |
-| Jamendo | Busca, mais ouvidas e stream completo | `client_id` gratuito (opcional) | Faixas sob licenças Creative Commons; cada faixa tem a sua. Verifique antes de uso comercial. |
-| Internet Archive | Busca e stream de áudio | Não | A busca filtra itens com licença Creative Commons (`LICENSE_FILTER` em `src/main/sources/archive.ts`). Itens de acesso restrito são ignorados. |
-| Openverse | Busca de músicas com licença aberta | Não (acesso anônimo, com limite de uso) | Catálogo de mídia sob Creative Commons e domínio público; cada resultado informa a licença. O app só usa faixas da categoria música. Agrega fontes como Jamendo e Wikimedia Commons, então pode repetir faixas de outras fontes (o app remove duplicatas). |
+| Internet Archive | Busca e stream de áudio (padrão) | Não | Por padrão, a busca limita resultados a licenças abertas. O filtro pode ser alterado por um efeito de manifesto ativado explicitamente. Itens de acesso restrito são ignorados. |
+| YouTube | Busca opcional e reprodução pelo player oficial incorporado | Chave própria da YouTube Data API v3 | Desativado por padrão; exige importar e ativar um manifesto com o efeito `source.youtube`. A chave é armazenada criptografada pelo sistema operacional. A busca consome cota do projeto Google Cloud do usuário. O Openfy não extrai nem baixa áudio. Cada vídeo continua sujeito aos termos e direitos definidos pelo YouTube e pelos titulares. |
 | Arquivos locais | Reprodução de arquivos do próprio usuário | Não | Responsabilidade do usuário. |
 
-O Openfy não toca YouTube, Deezer, Spotify nem outros serviços proprietários.
+Audius, Jamendo, Openverse e LibriVox têm módulos de fonte preservados no código, mas não são consultados pela busca online ativa desta versão.
+
+O Openfy não integra Deezer, Spotify nem outros serviços proprietários. O uso do player oficial do YouTube não implica afiliação ou endosso pelo YouTube ou pelo Google.
 
 Antes de publicar, confirme os termos atuais de cada serviço. Termos mudam.
 

@@ -8,7 +8,6 @@ export type View =
   | { type: 'discover' }
   | { type: 'studio' }
   | { type: 'themes' }
-  | { type: 'modhub' }
   | { type: 'developer' }
   | { type: 'saved' }
   | { type: 'playlist'; id: string }

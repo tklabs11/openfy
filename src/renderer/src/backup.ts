@@ -24,7 +24,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 const isStringArray = (value: unknown[]): value is string[] => value.every((item) => typeof item === 'string')
 const isSource = (value: unknown): value is Track['source'] =>
-  value === 'local' || value === 'audius' || value === 'jamendo' || value === 'archive' || value === 'openverse'
+  value === 'local' || value === 'audius' || value === 'jamendo' || value === 'archive' || value === 'openverse' || value === 'librivox' || value === 'youtube'
 
 function validOptionalString(value: unknown, field: string, maxLength: number): string | undefined {
   if (value === undefined) return undefined
@@ -38,6 +38,10 @@ function parseTrack(value: unknown): Track {
   const album = validOptionalString(value.album, 'album', 1000)
   const cover = validOptionalString(value.cover, 'cover', 5_000_000)
   const license = validOptionalString(value.license, 'license', 200)
+  const coverLookupAttempted = value.coverLookupAttempted
+  if (coverLookupAttempted !== undefined && typeof coverLookupAttempted !== 'boolean') {
+    throw new Error('Campo inválido no backup: coverLookupAttempted.')
+  }
   if (typeof id !== 'string' || !id || id.length > 500
     || typeof title !== 'string' || title.length > 1000
     || typeof artist !== 'string' || artist.length > 1000
@@ -63,7 +67,8 @@ function parseTrack(value: unknown): Track {
     ...(duration !== undefined ? { duration } : {}),
     ...(album !== undefined ? { album } : {}),
     ...(cover !== undefined ? { cover } : {}),
-    ...(license !== undefined ? { license } : {})
+    ...(license !== undefined ? { license } : {}),
+    ...(coverLookupAttempted !== undefined ? { coverLookupAttempted } : {})
   }
 }
 

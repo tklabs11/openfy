@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Track } from '@shared/types'
 import { HtmlAudioProvider } from './providers/HtmlAudioProvider'
+import { YouTubeProvider } from './providers/YouTubeProvider'
 import { useLibrary } from './library'
 import { recordTaste } from './taste'
 import { insertNext, keepCurrentQueueItem, moveQueueItem, removeQueueItem } from './queue'
@@ -37,20 +38,22 @@ interface PlayerState {
   cycleRepeat(): void
 }
 
-// Todas as fontes (arquivo local, Audius, Jamendo, Internet Archive) tocam por um <audio> HTML.
+// YouTube usa o player oficial incorporado; as outras fontes tocam por <audio>.
 const audio = new HtmlAudioProvider()
+export const youtube = new YouTubeProvider()
 
-let active: HtmlAudioProvider | null = null
+let active: HtmlAudioProvider | YouTubeProvider | null = null
 let token = 0
 let fadeTimer: ReturnType<typeof setInterval> | null = null
 function cancelFade(): void { if (fadeTimer) clearInterval(fadeTimer); fadeTimer = null }
+const setAllVolume = (volume: number): void => { audio.setVolume(volume); youtube.setVolume(volume) }
 function fadeVolume(from: number, to: number, seconds: number, done?: () => void): void {
   cancelFade()
-  if (seconds <= 0) { audio.setVolume(to); done?.(); return }
+  if (seconds <= 0) { setAllVolume(to); done?.(); return }
   const start = Date.now()
   fadeTimer = setInterval(() => {
     const progress = Math.min(1, (Date.now() - start) / (seconds * 1000))
-    audio.setVolume(from + (to - from) * progress)
+    setAllVolume(from + (to - from) * progress)
     if (progress >= 1) { cancelFade(); done?.() }
   }, 25)
 }
@@ -70,7 +73,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
       prior.pause()
     }
     set({ index: i, position: 0, duration: track.duration ?? 0, error: null, playing: false })
-    const provider = audio
+    const provider = track.source === 'youtube' ? youtube : audio
+    if (active && active !== provider) active.pause()
     active = provider
     try {
       await provider.load(track)
@@ -260,7 +264,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
     setVolume(v) {
       const vol = Math.min(1, Math.max(0, v))
       cancelFade()
-      audio.setVolume(vol)
+      setAllVolume(vol)
       set({ volume: vol })
       useLibrary.getState().updateSettings({ volume: vol })
     },

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "pessoal.youtube",
+  "name": "YouTube (com a sua chave)",
+  "version": "1.0.0",
+  "author": "Openfy",
+  "description": "Inclui vídeos de música incorporáveis do YouTube na busca usando uma chave própria da YouTube Data API v3.",
+  "kind": "integration",
+  "permissions": ["sources.youtube"],
+  "effects": [
+    {
+      "type": "source.youtube",
+      "value": "on"
+    }
+  ]
+}

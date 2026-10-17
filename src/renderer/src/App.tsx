@@ -2,14 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Icon } from './components/Icon'
 import { SettingsDialog } from './components/SettingsDialog'
 import './themes'
-import './modhub'
 import { DiscoverView } from './views/DiscoverView'
-import { AudioStudioView, MiniPlayer } from './views/AudioStudioView'
+import { AudioStudioView } from './views/AudioStudioView'
 import { DeveloperView } from './views/DeveloperView'
-import { ModHubView } from './views/ModHubView'
 import { ThemesView } from './views/ThemesView'
 import { Sidebar, type View } from './components/Sidebar'
 import { PlayerBar } from './components/PlayerBar'
+import { ThemeBackdrop } from './components/ThemeBackdrop'
 import { NowPanel } from './components/NowPanel'
 import { HomeView } from './views/HomeView'
 import { SearchView } from './views/SearchView'
@@ -23,6 +22,7 @@ import { PlaylistDetailsDialog, type PlaylistDetails } from './components/Playli
 export default function App() {
   const ready = useLibrary((s) => s.ready)
   const hasTrack = usePlayer((s) => s.index >= 0)
+  const youtubeTrack = usePlayer((s) => s.queue[s.index]?.source === 'youtube')
   const [view, setView] = useState<View>({ type: 'home' })
   const [playlistEditor, setPlaylistEditor] = useState<{ playlistId?: string; firstTrack?: Track } | null>(null)
   const editingPlaylist = useLibrary((s) => s.playlists.find((playlist) => playlist.id === playlistEditor?.playlistId))
@@ -57,6 +57,13 @@ export default function App() {
   }
 
   const [showNow, setShowNow] = useState(() => localStorage.getItem('openfy-show-now') !== 'false')
+  const panelVisible = showNow || youtubeTrack
+  const toggleNowPanel = (): void => {
+    if (youtubeTrack) return
+    const next = !showNow
+    setShowNow(next)
+    localStorage.setItem('openfy-show-now', String(next))
+  }
 
   useEffect(() => {
     void useLibrary
@@ -111,14 +118,11 @@ export default function App() {
   if (!ready) return <div className="loading">Carregando…</div>
 
   return (
-    <div className={'app' + (hasTrack && showNow ? ' np-on' : '')}>
+    <div className={'app' + (hasTrack && panelVisible ? ' np-on' : '') + (youtubeTrack ? ' youtube-on' : '')}>
+      <ThemeBackdrop />
       <Sidebar view={view} setView={setView} onCreatePlaylist={() => setPlaylistEditor({})} />
       <header className="topbar">
         <button className="topbar-brand" onClick={() => setView({type:'home'})}><img className="openfy-pulse-brand" src="./openfy-pulse.png" alt="" /> Openfy</button>
-        <div className="topbar-links">
-          <button className={view.type === 'home' ? 'selected' : ''} onClick={() => setView({type:'home'})}>Início</button>
-          <button className={view.type === 'discover' ? 'selected' : ''} onClick={() => setView({type:'discover'})}>Descobrir</button>
-        </div>
         <div className="global-search-wrap">
           <form className="global-search" role="search" onSubmit={(e) => { e.preventDefault(); submitSearch(searchQuery) }}>
             <Icon name="search" size={20} />
@@ -136,14 +140,13 @@ export default function App() {
           )}
         </div>
         <div className="topbar-actions">
-          <button title="Mostrar ou ocultar painel da música" className="topbar-icon" onClick={() => {const next = !showNow;setShowNow(next);localStorage.setItem('openfy-show-now', String(next))}}>▣</button>
+          <button title={youtubeTrack ? 'Painel obrigatório para reprodução do YouTube' : showNow ? 'Recolher painel da música' : 'Expandir painel da música'} aria-label={youtubeTrack ? 'Painel obrigatório para reprodução do YouTube' : showNow ? 'Recolher painel da música' : 'Expandir painel da música'} aria-expanded={panelVisible} className={'topbar-icon' + (panelVisible ? ' selected' : '')} onClick={toggleNowPanel} disabled={youtubeTrack}><Icon name="panel" size={20}/></button>
           <button title="Configurações" aria-label="Configurações" className="topbar-icon" onClick={() => setSettingsOpen(true)}><Icon name="settings" size={21}/></button>
-          <button title="Temas e mods" className="topbar-profile" onClick={() => setView({type:'themes'})}>OF</button>
+          <button title="Abrir temas" aria-label="Abrir temas" className="topbar-profile" onClick={() => setView({type:'themes'})}>OF</button>
         </div>
       </header>
       <main className="main">
         {view.type === 'themes' && <ThemesView />}
-        {view.type === 'modhub' && <ModHubView />}
         {view.type === 'developer' && <DeveloperView />}
         {view.type === 'discover' && <DiscoverView onCreatePlaylist={(track) => setPlaylistEditor({ firstTrack: track })} />}
         {view.type === 'studio' && <AudioStudioView />}
@@ -160,8 +163,8 @@ export default function App() {
           />
         )}
       </main>
-      {showNow && <NowPanel />}
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} onNavigate={(v) => {setView(v);setSettingsOpen(false)}} showNow={showNow} onToggleNow={() => {const next = !showNow;setShowNow(next);localStorage.setItem('openfy-show-now',String(next))}} />
+      {panelVisible && <NowPanel />}
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} onNavigate={(v) => {setView(v);setSettingsOpen(false)}} showNow={panelVisible} panelLocked={youtubeTrack} onToggleNow={toggleNowPanel} />
       <PlaylistDetailsDialog
         open={playlistEditor !== null}
         playlist={editingPlaylist}
@@ -176,7 +179,6 @@ export default function App() {
           setPlaylistEditor(null)
         }}
       />
-      <MiniPlayer />
       <PlayerBar />
     </div>
   )

@@ -45,3 +45,8 @@ test('merges tracks, likes, and playlists without duplicates or replacing curren
     { addedTracks: 1, addedLikes: 1, addedPlaylists: 1, updatedPlaylists: 1 }
   )
 })
+
+test('accepts LibriVox tracks in library backups', () => {
+  const librivoxTrack = { ...track('lv:47:1'), source: 'librivox' }
+  assert.deepEqual(backup([librivoxTrack]).tracks, [librivoxTrack])
+})
