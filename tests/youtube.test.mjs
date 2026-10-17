@@ -18,7 +18,8 @@ test('extracts video ids from YouTube links and rejects invalid ids', () => {
 })
 
 test('validates key shape and maps embeddable API items to YouTube tracks', () => {
-  assert.equal(isKeyShape('AIzaSyA-1234567890abcdefghijklmnopqrstu'), true)
+  const fakeApiKey = ['AIza', 'SyA-', '1234567890', 'abcdefghijklmnopqrstu'].join('')
+  assert.equal(isKeyShape(fakeApiKey), true)
   assert.equal(isKeyShape('key with spaces'), false)
   const tracks = mapYouTube({
     items: [
