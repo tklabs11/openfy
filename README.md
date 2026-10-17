@@ -54,7 +54,7 @@ Crie e compartilhe temas personalizados e conheça os limites atuais do Develope
 
 As versões instaladas no Windows verificam atualizações publicadas em GitHub Releases. A verificação também pode ser iniciada em **Configurações → Desktop**; quando uma atualização é encontrada, o app a baixa e oferece reiniciar para instalar. Versões beta recebem versões beta e estáveis recebem apenas versões estáveis.
 
-Para publicar uma versão beta Windows, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.2.0-beta.1`) e envie-a ao GitHub. O workflow gera o instalador NSIS e publica uma pré-release visível, com os metadados necessários para o atualizador. A configuração atual está no canal beta; antes da primeira versão estável, altere `build.publish.releaseType` para `release`.
+Para publicar uma versão beta Windows, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.2.0-beta.2`) e envie-a ao GitHub. O workflow gera o instalador NSIS e publica uma pré-release visível, com os metadados necessários para o atualizador. A configuração atual está no canal beta; antes da primeira versão estável, altere `build.publish.releaseType` para `release`.
 
 ## Fila e backup da biblioteca
 
