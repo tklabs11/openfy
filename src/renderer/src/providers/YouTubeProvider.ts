@@ -13,11 +13,11 @@ declare global {
 }
 
 interface YouTubePlayer {
-  cueVideoById(id: string): void
   destroy(): void
   getCurrentTime(): number
   getDuration(): number
   getIframe(): HTMLIFrameElement
+  loadVideoById(id: string): void
   pauseVideo(): void
   playVideo(): void
   seekTo(seconds: number, allowSeekAhead: boolean): void
@@ -94,7 +94,7 @@ export class YouTubeProvider implements PlayerProvider {
     const host = await this.waitForContainer()
     if (this.player && !this.player.getIframe?.()?.isConnected) this.destroy()
     if (this.player) {
-      this.player.cueVideoById(id)
+      this.player.loadVideoById(id)
       return
     }
     await new Promise<void>((resolve, reject) => {
@@ -104,7 +104,15 @@ export class YouTubeProvider implements PlayerProvider {
         width: '100%',
         height: '100%',
         videoId: id,
-        playerVars: { playsinline: 1, rel: 0, enablejsapi: 1 },
+        playerVars: {
+          playsinline: 1,
+          rel: 0,
+          enablejsapi: 1,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          iv_load_policy: 3
+        },
         events: {
           onReady: () => {
             this.player?.setVolume(this.volume)

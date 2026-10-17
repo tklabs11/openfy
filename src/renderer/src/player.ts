@@ -114,6 +114,8 @@ export const usePlayer = create<PlayerState>((set, get) => {
 
   audio.onEnd(handleEnd)
   audio.onError(handleError)
+  youtube.onEnd(handleEnd)
+  youtube.onError(handleError)
 
   const SESSION = 'openfy-last-session-v1'
   const saveSession = (): void => {
