@@ -56,7 +56,12 @@ let tray: Tray | null = null
 let quitting = false
 let playback = { playing: false, title: '', artist: '' }
 let mainWindow: BrowserWindow | null = null
-const pulsePath = (): string => join(__dirname, '../../resources/openfy-pulse.ico')
+const appIconPath = (): string => join(__dirname, '../../resources', process.platform === 'win32' ? 'openfy-pulse.ico' : 'openfy-pulse.png')
+const trayIcon = (): Electron.NativeImage => {
+  const image = nativeImage.createFromPath(appIconPath())
+  // GNOME/KDE esperam ícones pequenos; reduzir evita tray gigante ou vazio.
+  return process.platform === 'linux' ? image.resize({ width: 22, height: 22 }) : image
+}
 const sendMedia = (key: MediaKey): void => mainWindow?.webContents.send('media-key', key)
 function refreshTray(): void {
   if (!tray) return
@@ -73,8 +78,13 @@ function refreshTray(): void {
   ]))
 }
 function setupTray(): void {
-  if (tray || !existsSync(pulsePath())) return
-  tray = new Tray(nativeImage.createFromPath(pulsePath()))
+  if (tray) return
+  const image = trayIcon()
+  if (image.isEmpty()) {
+    console.warn('[Openfy] Ícone da bandeja não pôde ser carregado; bandeja desativada.')
+    return
+  }
+  tray = new Tray(image)
   tray.on('double-click', () => { mainWindow?.show(); mainWindow?.focus() })
   tray.on('click', () => { mainWindow?.show(); mainWindow?.focus() })
   refreshTray()
@@ -301,7 +311,7 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     backgroundColor: '#0b0b0f',
     title: 'Openfy',
-    ...(existsSync(pulsePath()) ? { icon: pulsePath() } : {}),
+    ...(existsSync(appIconPath()) ? { icon: appIconPath() } : {}),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -344,7 +354,10 @@ function registerMediaKeys(getWin: () => BrowserWindow | null): void {
   }
   for (const [accel, key] of Object.entries(map)) {
     try {
-      globalShortcut.register(accel, () => getWin()?.webContents.send('media-key', key))
+      const ok = globalShortcut.register(accel, () => getWin()?.webContents.send('media-key', key))
+      if (!ok && process.platform === 'linux') {
+        console.warn(`[Openfy] Atalho global ${accel} indisponível; no Wayland o compositor pode bloqueá-lo.`)
+      }
     } catch {
       /* atalho indisponível nesta plataforma */
     }

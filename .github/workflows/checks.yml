@@ -15,3 +15,5 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
+      # Valida o empacotamento Linux antes de qualquer release.
+      - run: npm run dist:linux

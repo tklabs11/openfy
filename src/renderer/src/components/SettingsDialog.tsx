@@ -197,14 +197,14 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,panelLocked,onTo
               updateState.status === 'downloading' ? `Baixando versão ${updateState.version ?? ''}… ${Math.round(updateState.percent ?? 0)}%` :
               updateState.status === 'downloaded' ? `Versão ${updateState.version ?? ''} pronta para instalar.` :
               updateState.status === 'not-available' ? 'O Openfy já está atualizado.' :
-              updateState.status === 'unsupported' ? 'A atualização pelo app estará disponível na versão instalada para Windows.' :
+              updateState.status === 'unsupported' ? 'Atualização automática disponível nas versões instaladas para Windows e no AppImage do Linux. No .deb, atualize pelo gerenciador de pacotes.' :
               'Não foi possível verificar atualizações. Confira sua conexão e tente novamente.'
             }</p></div>
             {updateState.status === 'downloaded'
               ? <button className="settings-action" onClick={() => void installUpdate()}>Reiniciar e atualizar</button>
               : <button className="settings-action" disabled={['checking', 'available', 'downloading', 'unsupported'].includes(updateState.status)} onClick={() => void checkForUpdates()}>{updateState.status === 'error' ? 'Tentar novamente' : 'Buscar atualizações'}</button>}
           </div>
-          <p className="settings-tip">Controles na prévia da barra de tarefas estão disponíveis no Windows.</p>
+          <p className="settings-tip">Controles na prévia da barra de tarefas estão disponíveis no Windows. No Linux, a bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator) e as teclas de mídia podem ser bloqueadas pelo Wayland.</p>
         </>}
         {tab==='audio' &&<><h3>Reprodução e áudio</h3><p>Personalize as frequências, presets e visualizador no Audio Studio.</p>
           <label className="settings-setting"><div><strong>Fade ao trocar, pausar ou retomar</strong><p>Transição suave de volume. Não é crossfade de duas faixas simultâneas. 0 desativa.</p></div><select className="settings-select" value={fadeSeconds} onChange={e => void updateFadeSeconds(Number(e.target.value))}>{[0,0.5,1,2,3,4,6].map(v=><option key={v} value={v}>{v === 0 ? 'Desativado' : `${v} s`}</option>)}</select></label>{fadeSaveError && <p className="discovery-error" role="alert">{fadeSaveError}</p>}<button className="settings-action" onClick={()=>onNavigate({type:'studio'})}>Abrir Audio Studio →</button><p className="settings-tip">Faixas online com restrições CORS continuam usando reprodução direta para evitar silêncio. O processamento depende da autorização da fonte.</p></>}

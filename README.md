@@ -16,9 +16,30 @@ Para habilitar a busca do YouTube, importe e ative `plugins-exemplo/youtube.open
 Veja `COMO-USAR.txt` (Windows: dois cliques em `INSTALAR-E-RODAR.bat`). Ou:
 ```bash
 npm ci
-npm run dev      # desenvolvimento
-npm run dist     # instalador em dist/
+npm run dev        # desenvolvimento
+npm run dist       # instalador da plataforma atual em dist/
+npm run dist:win   # instalador NSIS para Windows
+npm run dist:linux # AppImage e .deb para Linux
 ```
+
+## Instalar no Linux
+
+Cada release publica `Openfy-<versão>.AppImage` e `openfy_<versão>_amd64.deb`:
+
+```bash
+chmod +x Openfy-0.2.0-beta.2.AppImage
+./Openfy-0.2.0-beta.2.AppImage
+```
+
+```bash
+sudo apt install ./openfy_0.2.0-beta.2_amd64.deb
+```
+
+Depois abra pelo menu de aplicativos (ou rode `/opt/Openfy/openfy`).
+
+No Ubuntu 22.04 e mais recente o AppImage precisa do FUSE 2 (`sudo apt install libfuse2`; no 24.04+ o pacote se chama `libfuse2t64`). Sem ele, rode com `--appimage-extract-and-run`.
+
+No Linux, a atualização automática funciona pelo AppImage; no `.deb`, atualize com `apt`. A bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator) e as teclas de mídia podem ser bloqueadas pelo Wayland.
 
 ## Estrutura
 ```
@@ -50,11 +71,11 @@ Ao editar um tema personalizado, é possível salvar as mudanças nele mesmo ou 
 
 Crie e compartilhe temas personalizados e conheça os limites atuais do Developer Mode no [guia de temas e plugins](docs/temas-e-plugins/README.md). Manifestos são declarativos e não executam código externo; efeitos de busca suportados só entram em vigor após ativação explícita.
 
-## Atualizações automáticas (Windows)
+## Atualizações automáticas (Windows e AppImage no Linux)
 
-As versões instaladas no Windows verificam atualizações publicadas em GitHub Releases. A verificação também pode ser iniciada em **Configurações → Desktop**; quando uma atualização é encontrada, o app a baixa e oferece reiniciar para instalar. Versões beta recebem versões beta e estáveis recebem apenas versões estáveis.
+As versões instaladas no Windows e o AppImage do Linux verificam atualizações publicadas em GitHub Releases. A verificação também pode ser iniciada em **Configurações → Desktop**; quando uma atualização é encontrada, o app a baixa e oferece reiniciar para instalar. Versões beta recebem versões beta e estáveis recebem apenas versões estáveis. O `.deb` não usa o atualizador do app: atualize com o gerenciador de pacotes.
 
-Para publicar uma versão beta Windows, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.2.0-beta.2`) e envie-a ao GitHub. O workflow gera o instalador NSIS e publica uma pré-release visível, com os metadados necessários para o atualizador. A configuração atual está no canal beta; antes da primeira versão estável, altere `build.publish.releaseType` para `release`.
+Para publicar uma versão beta, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.2.0-beta.2`) e envie-a ao GitHub. O workflow gera o instalador NSIS no Windows e, em seguida, AppImage e `.deb` no Linux, publicando tudo na mesma pré-release com os metadados necessários para o atualizador. A configuração atual está no canal beta; antes da primeira versão estável, altere `build.publish.releaseType` para `release`.
 
 ## Fila e backup da biblioteca
 

@@ -1,4 +1,4 @@
-name: Publicar instalador Windows
+name: Publicar instaladores
 
 on:
   push:
@@ -19,5 +19,21 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run dist:win -- --publish always
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Encadeado no job do Windows para publicar no mesmo release já criado.
+  # Ubuntu 22.04 mantém o AppImage compatível com glibc mais antiga.
+  release-linux:
+    needs: release-windows
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run dist:linux -- --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

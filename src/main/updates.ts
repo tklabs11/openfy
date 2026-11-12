@@ -46,7 +46,9 @@ export const appUpdates = {
     listener(state)
   },
   initialize(isPackaged: boolean, platform: string, currentVersion: string): void {
-    supported = isPackaged && platform === 'win32'
+    // No Linux só o AppImage tem atualização automática; o .deb é atualizado pelo gerenciador de pacotes.
+    const appImage = platform === 'linux' && !!process.env.APPIMAGE
+    supported = isPackaged && (platform === 'win32' || appImage)
     if (!supported) {
       publish({ status: 'unsupported' })
       return
