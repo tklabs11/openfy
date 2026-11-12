@@ -66,6 +66,9 @@
         "StartupWMClass": "Openfy"
       }
     },
+    "deb": {
+      "afterInstall": "build/linux/after-install.sh"
+    },
     "publish": {
       "provider": "github",
       "owner": "tklabs11",

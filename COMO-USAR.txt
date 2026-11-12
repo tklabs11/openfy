@@ -32,6 +32,7 @@ LINUX (versão pronta)
 - Debian/Ubuntu (.deb): dois cliques e instale, ou no terminal:
   sudo apt install ./openfy_*_amd64.deb
 - Se o AppImage não abrir: sudo apt install libfuse2  (no Ubuntu 24.04+ use libfuse2t64)
+- Se aparecer erro de "SUID sandbox helper": no Ubuntu 23.10+ prefira o .deb, ou rode o AppImage com --no-sandbox
 - Atualização automática: só no AppImage. No .deb, atualize pelo gerenciador de pacotes.
 
 SE DER ERRO

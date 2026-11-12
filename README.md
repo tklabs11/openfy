@@ -39,6 +39,8 @@ Depois abra pelo menu de aplicativos (ou rode `/opt/Openfy/openfy`).
 
 No Ubuntu 22.04 e mais recente o AppImage precisa do FUSE 2 (`sudo apt install libfuse2`; no 24.04+ o pacote se chama `libfuse2t64`). Sem ele, rode com `--appimage-extract-and-run`.
 
+No Ubuntu 23.10 e mais recente o AppArmor restringe user namespaces para aplicativos abertos pela sessão gráfica. O pacote `.deb` configura o helper SUID do Chromium na instalação e funciona normalmente — no Ubuntu, prefira o `.deb`. O AppImage não consegue usar esse helper (o FUSE monta a imagem sem SUID), então, se ele for aberto direto pelo arquivo, rode `./Openfy-*.AppImage --no-sandbox`; integrado ao menu, o atalho gerado já inclui essa opção.
+
 No Linux, a atualização automática funciona pelo AppImage; no `.deb`, atualize com `apt`. A bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator) e as teclas de mídia podem ser bloqueadas pelo Wayland.
 
 ## Estrutura
