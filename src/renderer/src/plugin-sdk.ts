@@ -62,4 +62,22 @@ export function resolveSearchOptions(plugins:PluginManifest[],enabled:string[]):
  return {archiveOpenOnly:!relaxed,...(youtube?{youtube:true}:{})}
 }
 export function downloadJson(name:string,data:unknown):void{const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+
+/** Fonte do YouTube pronta para uso: sem chave, ativada em um clique. */
+export const YOUTUBE_BUILTIN:PluginManifest={schemaVersion:1,id:'openfy.youtube',name:'Busca do YouTube',version:'1.0.0',author:'Openfy',description:'Inclui vídeos de música do YouTube na busca usando instâncias públicas do Invidious, sem chave da API.',kind:'integration',permissions:['sources.youtube'],effects:[{type:'source.youtube',value:'on'}]}
+export function youtubeSearchEnabled(plugins:PluginManifest[],enabled:string[]):boolean{
+ return plugins.some(p=>enabled.includes(p.id)&&(p.effects??[]).some(e=>e.type==='source.youtube'))
+}
+const DEFAULTS_KEY='openfy-defaults-v1'
+/** Na primeira abertura instala e ativa a busca do YouTube. Depois disso, vale a escolha do usuário. */
+export function ensureBuiltinDefaults():void{
+ let seeded=false
+ try{seeded=localStorage.getItem(DEFAULTS_KEY)==='1'}catch{/* armazenamento indisponível */}
+ if(seeded)return
+ const plugins=readPlugins()
+ if(!plugins.some(p=>p.id===YOUTUBE_BUILTIN.id))savePlugins([...plugins,YOUTUBE_BUILTIN])
+ const enabled=readEnabled()
+ if(!enabled.includes(YOUTUBE_BUILTIN.id))saveEnabled([...enabled,YOUTUBE_BUILTIN.id])
+ try{localStorage.setItem(DEFAULTS_KEY,'1')}catch{/* armazenamento indisponível */}
+}
 export const sampleManifest:PluginManifest={schemaVersion:1,id:'community.example-plugin',name:'Meu primeiro plugin',version:'1.0.0',author:'Comunidade Openfy',description:'Exemplo de manifesto declarativo para compartilhar com a comunidade.',kind:'utility',permissions:['player.read']}

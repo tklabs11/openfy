@@ -108,7 +108,7 @@ Campos aceitos:
 
 ### Busca opcional do YouTube
 
-O exemplo `plugins-exemplo/youtube.openfy.json` habilita a busca do YouTube quando importado e ativado. Não é preciso chave de API: o Openfy consulta instâncias públicas do Invidious e alterna entre elas quando alguma está fora do ar ou limitando acesso. Os vídeos são reproduzidos somente no player oficial incorporado, visível no painel **Tocando agora**; o Openfy não extrai nem baixa áudio. A busca padrão continua sendo a do Internet Archive, filtrada para licenças abertas.
+O manifesto `openfy.youtube` é instalado e ativado na primeira abertura do app (o mesmo conteúdo de `plugins-exemplo/youtube.openfy.json`), e pode ser desativado a qualquer momento em **Configurações → Desenvolvedor**. Não é preciso chave de API: o Openfy consulta instâncias públicas do Invidious e alterna entre elas quando alguma está fora do ar ou limitando acesso. Os vídeos são reproduzidos somente no player oficial incorporado, visível no painel **Tocando agora**; o Openfy não extrai nem baixa áudio. O Internet Archive continua sendo a outra fonte, filtrada por licenças abertas.
 
 O arquivo aberto pelo botão **Abrir arquivo** deve ter até 64 KB.
 

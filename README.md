@@ -4,13 +4,13 @@ Player de música desktop (Electron + React + TypeScript), código aberto (MIT),
 
 ## Fontes de música
 - **Internet Archive**: fonte padrão da busca online, sem chave; por padrão, mostra resultados com licenças abertas.
-- **YouTube (opcional)**: pode ser ativado por manifesto no Developer Mode. Busca em instâncias públicas do Invidious, sem chave de API, e reproduz vídeos no player oficial incorporado; o Openfy não extrai nem baixa áudio.
+- **YouTube**: ativado por padrão. Busca em instâncias públicas do Invidious, sem chave de API, e reproduz vídeos no player oficial incorporado; o Openfy não extrai nem baixa áudio. Pode ser desativado em **Configurações → Desenvolvedor**.
 - **Arquivos locais**: mp3, flac, wav, ogg, m4a, aac, opus via "Músicas salvas".
 
-A busca roda dentro do app (processo principal); não existe servidor. O YouTube não participa até que o usuário importe e ative um manifesto em **Configurações → Desenvolvedor**. Veja `docs/LICENSES.md`.
+A busca roda dentro do app (processo principal); não existe servidor. Veja `docs/LICENSES.md`.
 
-## YouTube opcional
-Para habilitar a busca do YouTube, importe e ative `plugins-exemplo/youtube.openfy.json` em **Configurações → Desenvolvedor**. Não é preciso criar chave: o Openfy consulta instâncias públicas do [Invidious](https://invidious.io) e, se uma estiver fora do ar ou limitando acesso, tenta outra automaticamente. Como as instâncias são mantidas pela comunidade, a busca pode falhar temporariamente; use **Testar busca** em **Configurações → Desenvolvedor** para diagnosticar. A busca padrão continua sendo a do Internet Archive.
+## YouTube
+A busca do YouTube já vem ativada e não exige chave: o Openfy consulta instâncias públicas do [Invidious](https://invidious.io) e, se uma estiver fora do ar ou limitando acesso, tenta outra automaticamente. Como as instâncias são mantidas pela comunidade, a busca pode falhar temporariamente; use **Testar busca** em **Configurações → Desenvolvedor** para diagnosticar. Para desativar, use o mesmo painel — as pesquisas passam a trazer apenas o Internet Archive. O manifesto fica em `plugins-exemplo/youtube.openfy.json` para quem quiser reimportar.
 
 ## Rodar
 Veja `COMO-USAR.txt` (Windows: dois cliques em `INSTALAR-E-RODAR.bat`). Ou:

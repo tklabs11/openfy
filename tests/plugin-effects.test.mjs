@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { importTypeScript } from './load-typescript.mjs'
 
-const { validateManifest, resolveSearchOptions } = await importTypeScript('../src/renderer/src/plugin-sdk.ts')
+const { validateManifest, resolveSearchOptions, YOUTUBE_BUILTIN, youtubeSearchEnabled } = await importTypeScript('../src/renderer/src/plugin-sdk.ts')
 const { buildArchiveQuery } = await importTypeScript('../src/main/sources/archive-query.ts')
 
 const wide = {
@@ -82,4 +82,13 @@ test('archive query keeps the Creative Commons filter unless told otherwise', ()
   assert.match(buildArchiveQuery('orochi', true), /creativecommons\.org/)
   assert.doesNotMatch(buildArchiveQuery('orochi', false), /creativecommons/)
   assert.match(buildArchiveQuery('orochi', false), /mediatype:audio/)
+})
+
+test('the built-in YouTube manifest is valid and activates the source in one click', () => {
+  const builtin = validateManifest(YOUTUBE_BUILTIN)
+  assert.equal(builtin.id, 'openfy.youtube')
+  assert.equal(youtubeSearchEnabled([builtin], []), false)
+  assert.equal(youtubeSearchEnabled([builtin], [builtin.id]), true)
+  assert.equal(youtubeSearchEnabled([builtin], ['outro.plugin']), false)
+  assert.deepEqual(resolveSearchOptions([builtin], [builtin.id]), { archiveOpenOnly: true, youtube: true })
 })

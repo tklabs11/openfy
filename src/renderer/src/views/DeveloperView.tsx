@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { YouTubeSearchPanel } from '../components/YouTubeSearchPanel'
-import { describeEffect, downloadJson, permissions, readEnabled, readPlugins, sampleManifest, saveEnabled, savePlugins, validateManifest, type PluginManifest } from '../plugin-sdk'
+import { describeEffect, downloadJson, permissions, readEnabled, readPlugins, sampleManifest, saveEnabled, savePlugins, validateManifest, PLUGINS_CHANGED, type PluginManifest } from '../plugin-sdk'
 export function DeveloperView(){
  const [plugins,setPlugins]=useState(readPlugins)
  const [draft,setDraft]=useState(JSON.stringify(sampleManifest,null,2))
  const [message,setMessage]=useState('')
  const [selected,setSelected]=useState<string|null>(null)
  const [enabled,setEnabled]=useState(readEnabled)
+ useEffect(()=>{const sync=()=>{setPlugins(readPlugins());setEnabled(readEnabled())};window.addEventListener(PLUGINS_CHANGED,sync);return()=>window.removeEventListener(PLUGINS_CHANGED,sync)},[])
  const toggle=(p:PluginManifest)=>{
   const on=enabled.includes(p.id)
   if(!on){const lines=(p.effects??[]).map(describeEffect).join('\n- ');if(!window.confirm(`Ativar "${p.name}"?\n\nEfeitos:\n- ${lines}\n\nO que você tocar é responsabilidade sua. Você pode desativar quando quiser, e o Openfy volta ao padrão.`))return}

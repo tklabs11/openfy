@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Track } from '@shared/types'
 import { TrackList } from '../components/TrackList'
 import { searchTracksPage } from '../searchTracks'
-import { PLUGINS_CHANGED } from '../plugin-sdk'
+import { PLUGINS_CHANGED, YOUTUBE_BUILTIN, readEnabled, readPlugins, saveEnabled, savePlugins, youtubeSearchEnabled } from '../plugin-sdk'
 
 interface SearchProps {
   query: string
@@ -22,13 +22,23 @@ export function SearchView({ query, onQueryChange, onSearch, onCreatePlaylist }:
   const [hasMore, setHasMore] = useState(false)
   const [refresh, setRefresh] = useState(0)
   const [retryable, setRetryable] = useState(false)
+  const [youtubeOff, setYoutubeOff] = useState(() => !youtubeSearchEnabled(readPlugins(), readEnabled()))
   const requestId = useRef(0)
 
   useEffect(() => {
-    const again = (): void => setRefresh((value) => value + 1)
+    const again = (): void => {
+      setYoutubeOff(!youtubeSearchEnabled(readPlugins(), readEnabled()))
+      setRefresh((value) => value + 1)
+    }
     window.addEventListener(PLUGINS_CHANGED, again)
     return () => window.removeEventListener(PLUGINS_CHANGED, again)
   }, [])
+
+  const enableYouTube = (): void => {
+    const plugins = readPlugins()
+    if (!plugins.some((p) => p.id === YOUTUBE_BUILTIN.id)) savePlugins([...plugins, YOUTUBE_BUILTIN])
+    saveEnabled([...new Set([...readEnabled(), YOUTUBE_BUILTIN.id])])
+  }
 
   useEffect(() => {
     const term = query.trim()
@@ -92,6 +102,12 @@ export function SearchView({ query, onQueryChange, onSearch, onCreatePlaylist }:
       {loading && <p className="empty">Buscando…</p>}
       {!loading && error && <div className="search-error" role={retryable ? 'alert' : 'status'}><p>{error}</p>{retryable && <button className="settings-action" onClick={() => setRefresh((value) => value + 1)}>Tentar novamente</button>}</div>}
       {!loading && !error && !results.length && <p className="empty">Digite pelo menos 2 caracteres na barra de pesquisa acima.</p>}
+      {!loading && searched && youtubeOff && (
+        <div className="search-error" role="status">
+          <p>A busca do YouTube está desativada, então só o Internet Archive responde. Ativando, as pesquisas também encontram músicas do YouTube.</p>
+          <button className="settings-action" onClick={enableYouTube}>Ativar busca do YouTube</button>
+        </div>
+      )}
       {!loading && results.length > 0 && (
         <>
           <h2 className="shelf-title">Resultados para "{searched}"</h2>
