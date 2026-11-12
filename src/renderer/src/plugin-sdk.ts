@@ -10,7 +10,7 @@ export const EFFECT_RULES = {
 } as const
 export function describeEffect(effect: PluginEffect): string {
   if (effect.type === 'source.youtube') {
-    return 'Busca do YouTube usando sua própria chave da API. Vídeos reproduzidos no player oficial e sempre visíveis no painel.'
+    return 'Busca do YouTube via instâncias públicas do Invidious, sem chave de API. Vídeos reproduzidos no player oficial e sempre visíveis no painel.'
   }
   return effect.value === 'off'
     ? 'Busca do Internet Archive: sem filtro de licença (mostra também áudio com direitos reservados).'

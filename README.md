@@ -4,13 +4,13 @@ Player de música desktop (Electron + React + TypeScript), código aberto (MIT),
 
 ## Fontes de música
 - **Internet Archive**: fonte padrão da busca online, sem chave; por padrão, mostra resultados com licenças abertas.
-- **YouTube (opcional)**: pode ser ativado por manifesto no Developer Mode. Requer chave própria da YouTube Data API v3 e reproduz vídeos no player oficial incorporado; o Openfy não extrai nem baixa áudio.
+- **YouTube (opcional)**: pode ser ativado por manifesto no Developer Mode. Busca em instâncias públicas do Invidious, sem chave de API, e reproduz vídeos no player oficial incorporado; o Openfy não extrai nem baixa áudio.
 - **Arquivos locais**: mp3, flac, wav, ogg, m4a, aac, opus via "Músicas salvas".
 
-A busca roda dentro do app (processo principal); não existe servidor. O YouTube não participa até que o usuário importe e ative um manifesto e configure sua própria chave em **Configurações → Desenvolvedor**. Consultas consomem a cota da chave. Veja `docs/LICENSES.md`.
+A busca roda dentro do app (processo principal); não existe servidor. O YouTube não participa até que o usuário importe e ative um manifesto em **Configurações → Desenvolvedor**. Veja `docs/LICENSES.md`.
 
 ## YouTube opcional
-Para habilitar a busca do YouTube, crie uma chave para a YouTube Data API v3 no Google Cloud Console. No app, importe e ative `plugins-exemplo/youtube.openfy.json` em **Configurações → Desenvolvedor** e configure a chave nessa tela. Ela é validada e armazenada criptografada pelo sistema operacional. Cada consulta usa cota da API (100 unidades na configuração atual); acompanhe o uso no Google Cloud Console.
+Para habilitar a busca do YouTube, importe e ative `plugins-exemplo/youtube.openfy.json` em **Configurações → Desenvolvedor**. Não é preciso criar chave: o Openfy consulta instâncias públicas do [Invidious](https://invidious.io) e, se uma estiver fora do ar ou limitando acesso, tenta outra automaticamente. Como as instâncias são mantidas pela comunidade, a busca pode falhar temporariamente; use **Testar busca** em **Configurações → Desenvolvedor** para diagnosticar. A busca padrão continua sendo a do Internet Archive.
 
 ## Rodar
 Veja `COMO-USAR.txt` (Windows: dois cliques em `INSTALAR-E-RODAR.bat`). Ou:

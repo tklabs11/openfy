@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
   "id": "pessoal.youtube",
-  "name": "YouTube (com a sua chave)",
+  "name": "YouTube (busca sem chave)",
   "version": "1.0.0",
   "author": "Openfy",
-  "description": "Inclui vídeos de música incorporáveis do YouTube na busca usando uma chave própria da YouTube Data API v3.",
+  "description": "Inclui vídeos de música do YouTube na busca usando instâncias públicas do Invidious, sem chave da API.",
   "kind": "integration",
-  "permissions": ["sources.youtube"],
+  "permissions": [
+    "sources.youtube"
+  ],
   "effects": [
     {
       "type": "source.youtube",

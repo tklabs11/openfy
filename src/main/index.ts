@@ -9,9 +9,7 @@ import { DEFAULT_DB, type Db, type DesktopPreferences, type MediaKey, type Searc
 import { search, searchPage, featured, MAX_PAGES } from './sources'
 import { getLyrics } from './lyrics'
 import { findLocalCover } from './local-covers'
-import { checkYouTubeKey, youtubeLastError } from './sources/youtube'
-import { clearYoutubeKey, getYoutubeKey, setYoutubeKey } from './youtube-key'
-import { isKeyShape } from '../shared/youtube'
+import { invidiousLastError, checkInvidious } from './sources/invidious'
 import { discordPresence } from './discordPresence'
 import { appUpdates } from './updates'
 
@@ -289,22 +287,8 @@ function registerIpc(): void {
     return findLocalCover(title.trim(), artist.trim())
   })
 
-  ipcMain.handle('youtube:status', async () => ({ hasKey: !!(await getYoutubeKey()), lastError: youtubeLastError() }))
-  ipcMain.handle('youtube:setKey', async (_event, key: unknown) => {
-    const value = typeof key === 'string' ? key.trim() : ''
-    if (!isKeyShape(value)) {
-      return { ok: false, error: 'Formato de chave inválido. Verifique a chave da YouTube Data API v3.' }
-    }
-    const problem = await checkYouTubeKey(value)
-    if (problem) return { ok: false, error: problem }
-    try {
-      await setYoutubeKey(value)
-      return { ok: true }
-    } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : 'Não foi possível salvar a chave.' }
-    }
-  })
-  ipcMain.handle('youtube:clearKey', async () => clearYoutubeKey())
+  ipcMain.handle('youtube:status', () => ({ lastError: invidiousLastError() }))
+  ipcMain.handle('youtube:test', () => checkInvidious())
 
   ipcMain.handle('api:featured', () => featured())
 }

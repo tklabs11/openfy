@@ -108,7 +108,7 @@ Campos aceitos:
 
 ### Busca opcional do YouTube
 
-O exemplo `plugins-exemplo/youtube.openfy.json` habilita a busca do YouTube quando importado e ativado. Para usá-la, configure sua própria chave da YouTube Data API v3 em **Configurações → Desenvolvedor**. A chave pertence ao usuário, fica criptografada pelo sistema operacional e as consultas consomem a cota do projeto Google Cloud correspondente. Os vídeos são reproduzidos somente no player oficial incorporado, visível no painel **Tocando agora**; o Openfy não extrai nem baixa áudio. A busca padrão continua sendo a do Internet Archive, filtrada para licenças abertas.
+O exemplo `plugins-exemplo/youtube.openfy.json` habilita a busca do YouTube quando importado e ativado. Não é preciso chave de API: o Openfy consulta instâncias públicas do Invidious e alterna entre elas quando alguma está fora do ar ou limitando acesso. Os vídeos são reproduzidos somente no player oficial incorporado, visível no painel **Tocando agora**; o Openfy não extrai nem baixa áudio. A busca padrão continua sendo a do Internet Archive, filtrada para licenças abertas.
 
 O arquivo aberto pelo botão **Abrir arquivo** deve ter até 64 KB.
 

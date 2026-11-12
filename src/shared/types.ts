@@ -90,9 +90,8 @@ export interface OpenfyApi {
   pickThemeBackground(): Promise<string | null>
   search(query: string, options?: SearchOptions): Promise<Track[]>
   searchPage(query: string, options?: SearchOptions): Promise<SearchPage>
-  youtubeStatus(): Promise<{ hasKey: boolean; lastError: string | null }>
-  youtubeSetKey(key: string): Promise<{ ok: true } | { ok: false; error: string }>
-  youtubeClearKey(): Promise<void>
+  youtubeStatus(): Promise<{ lastError: string | null }>
+  youtubeTest(): Promise<{ ok: boolean; message: string }>
   getLyrics(title: string, artist: string, duration?: number): Promise<LyricsSearchResult>
   findLocalCover(title: string, artist: string): Promise<LocalCoverLookupResult>
   featured(): Promise<Track[]>
