@@ -24,22 +24,20 @@ npm run dist:linux # AppImage e .deb para Linux
 
 ## Instalar no Linux
 
-Cada release publica `Openfy-<versão>.AppImage` e `openfy_<versão>_amd64.deb`:
+Cada release publica quatro formatos:
 
-```bash
-chmod +x Openfy-0.2.0-beta.2.AppImage
-./Openfy-0.2.0-beta.2.AppImage
-```
+| Distros | Arquivo | Instalação |
+|---|---|---|
+| Debian, Ubuntu, Mint, Pop!_OS | `openfy_<versão>_amd64.deb` | `sudo apt install ./openfy_<versão>_amd64.deb` |
+| Fedora, openSUSE, RHEL | `openfy-<versão>.x86_64.rpm` | `sudo dnf install ./openfy-<versão>.x86_64.rpm` |
+| Qualquer distro (portátil) | `openfy-<versão>.tar.gz` | extraia e rode `./openfy` |
+| Qualquer distro (portátil) | `Openfy-<versão>.AppImage` | `chmod +x` e execute |
 
-```bash
-sudo apt install ./openfy_0.2.0-beta.2_amd64.deb
-```
+Com `.deb` ou `.rpm`, abra pelo menu de aplicativos (ou rode `/opt/Openfy/openfy`).
 
-Depois abra pelo menu de aplicativos (ou rode `/opt/Openfy/openfy`).
+O AppImage precisa do FUSE 2 (`libfuse2` no Debian/Ubuntu, `fuse-libs` no Fedora, `fuse2` no Arch); sem ele, rode com `--appimage-extract-and-run`. O `.tar.gz` não depende de FUSE.
 
-No Ubuntu 22.04 e mais recente o AppImage precisa do FUSE 2 (`sudo apt install libfuse2`; no 24.04+ o pacote se chama `libfuse2t64`). Sem ele, rode com `--appimage-extract-and-run`.
-
-No Ubuntu 23.10 e mais recente o AppArmor restringe user namespaces para aplicativos abertos pela sessão gráfica. O pacote `.deb` configura o helper SUID do Chromium na instalação e funciona normalmente — no Ubuntu, prefira o `.deb`. O AppImage não consegue usar esse helper (o FUSE monta a imagem sem SUID), então, se ele for aberto direto pelo arquivo, rode `./Openfy-*.AppImage --no-sandbox`; integrado ao menu, o atalho gerado já inclui essa opção.
+No Ubuntu 23.10 e mais recente o AppArmor restringe user namespaces para aplicativos abertos pela sessão gráfica. O `.deb` configura o helper SUID do Chromium na instalação, e o AppImage detecta a restrição e inicia com `--no-sandbox` automaticamente. No Ubuntu, prefira o `.deb`.
 
 No Linux, a atualização automática funciona pelo AppImage; no `.deb`, atualize com `apt`. A bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator) e as teclas de mídia podem ser bloqueadas pelo Wayland.
 

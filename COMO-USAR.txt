@@ -27,13 +27,12 @@ Abra o terminal na pasta e rode:  ./iniciar.sh
 Para instalador: npm install && npm run dist
 
 LINUX (versão pronta)
-- AppImage: clique com o botão direito no arquivo, Propriedades > Permissões > "Permitir execução"
-  (ou no terminal: chmod +x Openfy-*.AppImage) e dê dois cliques.
-- Debian/Ubuntu (.deb): dois cliques e instale, ou no terminal:
-  sudo apt install ./openfy_*_amd64.deb
-- Se o AppImage não abrir: sudo apt install libfuse2  (no Ubuntu 24.04+ use libfuse2t64)
-- Se aparecer erro de "SUID sandbox helper": no Ubuntu 23.10+ prefira o .deb, ou rode o AppImage com --no-sandbox
-- Atualização automática: só no AppImage. No .deb, atualize pelo gerenciador de pacotes.
+- Debian/Ubuntu (.deb):  sudo apt install ./openfy_*_amd64.deb
+- Fedora/openSUSE (.rpm): sudo dnf install ./openfy-*.x86_64.rpm
+- Qualquer distro (.tar.gz): extraia e rode ./openfy
+- AppImage: chmod +x Openfy-*.AppImage e execute (precisa de FUSE 2; no Fedora: fuse-libs,
+  no Arch: fuse2). Se não abrir, rode com --appimage-extract-and-run
+- Atualização automática: só no AppImage. Nos pacotes .deb/.rpm, atualize pelo gerenciador.
 
 SE DER ERRO
 - "node não é reconhecido": instale o Node.js (passo 1) e feche/abra de novo.

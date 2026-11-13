@@ -34,6 +34,8 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
+      # fpm precisa do rpmbuild para gerar o pacote .rpm
+      - run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm run dist:linux -- --publish always
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

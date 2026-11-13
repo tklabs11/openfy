@@ -5,7 +5,8 @@ on:
   pull_request:
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    # Ubuntu 22.04 tem o rpmbuild compatível com o fpm usado no empacotamento.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,5 +16,6 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run build
-      # Valida o empacotamento Linux antes de qualquer release.
+      # Valida o empacotamento Linux (AppImage, deb, rpm, tar.gz) antes do release.
+      - run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm run dist:linux
