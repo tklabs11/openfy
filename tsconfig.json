@@ -14,8 +14,9 @@
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["src/shared/*"],
-      "@renderer/*": ["src/renderer/src/*"]
+      "@renderer/*": ["src/renderer/src/*"],
+      "@main/*": ["src/main/*"]
     }
   },
-  "include": ["src/**/*", "electron.vite.config.ts"]
+  "include": ["src/**/*", "electron.vite.config.ts", "vite.android.config.ts", "capacitor.config.ts"]
 }

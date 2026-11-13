@@ -91,6 +91,25 @@ export class HtmlAudioProvider implements PlayerProvider {
     }
     void this.audio.play().catch(error => this.errCb(`Falha ao iniciar reprodução: ${String(error)}`))
   }
+  /**
+   * Começa a tocar sem esperar metadados. Usado ao sair da tela, quando o
+   * WebView congela e promessas podem nunca resolver; o início pela posição vai
+   * no fragmento (#t=) para o próprio elemento de mídia fazer o seek.
+   */
+  playDirect(uri: string, position: number): void {
+    this.audio.pause()
+    if (this.audio !== this.remoteAudio) {
+      this.audio.removeAttribute('src')
+      this.audio.load()
+    }
+    this.audio = this.remoteAudio
+    const element = this.remoteAudio
+    element.src = position > 0.5 ? `${uri}#t=${position.toFixed(3)}` : uri
+    element.load()
+    void element.play().catch(() => {
+      // Sem gesture a política de autoplay pode barrar; a notificação permite retomar.
+    })
+  }
   pause(): void { this.audio.pause() }
   seek(seconds: number): void { this.audio.currentTime = seconds }
   setVolume(volume: number): void { this.localAudio.volume = this.remoteAudio.volume = Math.min(1, Math.max(0, volume)) }

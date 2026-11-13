@@ -1,6 +1,6 @@
-import { net } from 'electron'
 import type { Track } from '../../shared/types'
-import { parseInvidiousInstances, searchInvidiousInstances } from '../../shared/invidious'
+import { audioStreamOf, parseInvidiousInstances, searchInvidiousInstances } from '../../shared/invidious'
+import { getJson as requestJson, type HttpFetch } from './http'
 
 const DISCOVERY_URL = 'https://api.invidious.io/instances.json?sort_by=health'
 /** Instâncias que já responderam com a API aberta; entram depois das descobertas. */
@@ -23,29 +23,20 @@ export const invidiousLastError = (): string | null => lastError
 let instanceCache: { at: number; list: string[] } | null = null
 const resultCache = new Map<string, { at: number; tracks: Track[] }>()
 
-async function getJson(url: string): Promise<unknown> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+async function getJson(url: string, fetcher?: HttpFetch): Promise<unknown> {
   try {
-    const response = await net.fetch(url, {
-      signal: controller.signal,
-      headers: { accept: 'application/json' }
-    })
-    if (!response.ok) throw new Error(`HTTP ${response.status}`)
-    return await response.json()
+    return await requestJson(url, REQUEST_TIMEOUT_MS, fetcher)
   } catch (error) {
     if (error instanceof Error && /^HTTP \d+$/.test(error.message)) throw error
     throw new Error('sem resposta em JSON')
-  } finally {
-    clearTimeout(timer)
   }
 }
 
-async function knownInstances(): Promise<string[]> {
+async function knownInstances(fetcher?: HttpFetch): Promise<string[]> {
   if (instanceCache && Date.now() - instanceCache.at < INSTANCES_TTL_MS) return instanceCache.list
   let discovered: string[] = []
   try {
-    discovered = parseInvidiousInstances(await getJson(DISCOVERY_URL))
+    discovered = parseInvidiousInstances(await getJson(DISCOVERY_URL, fetcher))
   } catch {
     // Sem a lista pública, as sementes conhecidas ainda permitem buscar.
   }
@@ -63,18 +54,25 @@ function trim(): void {
 }
 
 /** Busca no YouTube via instâncias públicas do Invidious, sem chave de API. */
-export async function searchInvidious(query: string, page = 1): Promise<Track[]> {
+export async function searchInvidious(query: string, page = 1, fetcher?: HttpFetch): Promise<Track[]> {
   const cacheKey = `${query.trim().toLowerCase()}|${page}`
   const hit = resultCache.get(cacheKey)
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.tracks
 
-  const instances = await knownInstances()
+  const instances = await knownInstances(fetcher)
   if (!instances.length) {
     lastError = 'Nenhuma instância pública do Invidious disponível no momento.'
     throw new Error(lastError)
   }
   try {
-    const { tracks } = await searchInvidiousInstances(instances, getJson, query, page, MAX_ATTEMPTS, SEARCH_BUDGET_MS)
+    const { tracks } = await searchInvidiousInstances(
+      instances,
+      (url) => getJson(url, fetcher),
+      query,
+      page,
+      MAX_ATTEMPTS,
+      SEARCH_BUDGET_MS
+    )
     lastError = null
     resultCache.set(cacheKey, { at: Date.now(), tracks })
     trim()
@@ -86,11 +84,11 @@ export async function searchInvidious(query: string, page = 1): Promise<Track[]>
 }
 
 /** Verifica se alguma instância responde de verdade, para diagnóstico no Developer Mode. */
-export async function checkInvidious(): Promise<{ ok: boolean; message: string }> {
+export async function checkInvidious(fetcher?: HttpFetch): Promise<{ ok: boolean; message: string }> {
   try {
     const { tracks, instance } = await searchInvidiousInstances(
-      await knownInstances(),
-      getJson,
+      await knownInstances(fetcher),
+      (url) => getJson(url, fetcher),
       'lofi',
       1,
       MAX_ATTEMPTS,
@@ -104,4 +102,41 @@ export async function checkInvidious(): Promise<{ ok: boolean; message: string }
     lastError = message
     return { ok: false, message }
   }
+}
+
+const STREAM_TTL_MS = 30 * 60 * 1_000
+const streamCache = new Map<string, { at: number; stream: { url: string; duration: number } | null }>()
+
+/**
+ * Stream só de áudio de um vídeo do YouTube. Serve para o Android continuar
+ * tocando fora do app, onde o player oficial pausa a página oculta.
+ * A URL vem presa ao IP de quem pediu, então precisa ser pedida no aparelho.
+ */
+export async function youtubeAudioStream(
+  videoId: string,
+  fetcher?: HttpFetch
+): Promise<{ url: string; duration: number } | null> {
+  if (!/^[\w-]{11}$/.test(videoId)) return null
+  const cached = streamCache.get(videoId)
+  if (cached && Date.now() - cached.at < STREAM_TTL_MS) return cached.stream
+
+  let instances: string[] = []
+  try {
+    instances = await knownInstances(fetcher)
+  } catch {
+    return null
+  }
+
+  for (const instance of instances.slice(0, MAX_ATTEMPTS)) {
+    try {
+      const data = await getJson(`${instance}/api/v1/videos/${videoId}?fields=adaptiveFormats,lengthSeconds`, fetcher)
+      const stream = audioStreamOf(data)
+      if (!stream) continue
+      streamCache.set(videoId, { at: Date.now(), stream })
+      return stream
+    } catch {
+      // Instância fora do ar ou sem o formato: tenta a próxima.
+    }
+  }
+  return null
 }

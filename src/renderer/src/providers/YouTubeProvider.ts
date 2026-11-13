@@ -17,7 +17,8 @@ interface YouTubePlayer {
   getCurrentTime(): number
   getDuration(): number
   getIframe(): HTMLIFrameElement
-  loadVideoById(id: string): void
+  getPlayerState?(): number
+  loadVideoById(id: string, startSeconds?: number): void
   pauseVideo(): void
   playVideo(): void
   seekTo(seconds: number, allowSeekAhead: boolean): void
@@ -72,6 +73,8 @@ export class YouTubeProvider implements PlayerProvider {
   private volume = 80
   private endCallback: () => void = () => {}
   private errorCallback: (message: string) => void = () => {}
+  private stateCallback: (playing: boolean) => void = () => {}
+  private startAt = 0
 
   attach(container: HTMLElement | null): void {
     this.container = container
@@ -87,16 +90,18 @@ export class YouTubeProvider implements PlayerProvider {
     throw new Error('Abra o painel "Tocando agora" para reproduzir vídeos do YouTube.')
   }
 
-  async load(track: Track): Promise<void> {
+  async load(track: Track, startAt = 0): Promise<void> {
     const id = videoIdFromUri(track.uri)
     if (!id) throw new Error('Vídeo do YouTube inválido.')
     await loadApi()
     const host = await this.waitForContainer()
     if (this.player && !this.player.getIframe?.()?.isConnected) this.destroy()
     if (this.player) {
-      this.player.loadVideoById(id)
+      // O segundo argumento já inicia o vídeo na posição certa, sem perder o seek.
+      this.player.loadVideoById(id, startAt > 0 ? startAt : undefined)
       return
     }
+    this.startAt = startAt
     await new Promise<void>((resolve, reject) => {
       const mount = document.createElement('div')
       host.appendChild(mount)
@@ -116,10 +121,18 @@ export class YouTubeProvider implements PlayerProvider {
         events: {
           onReady: () => {
             this.player?.setVolume(this.volume)
+            // O player nasce no zero; a posição vem do modo áudio (fora da tela).
+            if (this.startAt > 0) {
+              this.player?.seekTo(this.startAt, true)
+              this.startAt = 0
+            }
             resolve()
           },
           onStateChange: (event: YouTubeEvent) => {
             if (event.data === window.YT?.PlayerState.ENDED) this.endCallback()
+            // 1 = tocando, 2 = pausado (o player pausa sozinho quando a página fica oculta).
+            else if (event.data === 1) this.stateCallback(true)
+            else if (event.data === 2) this.stateCallback(false)
           },
           onError: (event: YouTubeEvent) => {
             const message = PLAYER_ERRORS[event.data] ?? 'Erro do player do YouTube.'
@@ -133,6 +146,15 @@ export class YouTubeProvider implements PlayerProvider {
 
   play(): void { this.player?.playVideo() }
   pause(): void { this.player?.pauseVideo() }
+  /** O YouTube pausa vídeos quando o app vai para segundo plano; retoma ao voltar. */
+  resumeIfPaused(): void {
+    try {
+      const state = this.player?.getPlayerState?.()
+      if (state === 2 || state === 5) this.player?.playVideo()
+    } catch {
+      // Player ainda não pronto.
+    }
+  }
   seek(seconds: number): void { this.player?.seekTo(seconds, true) }
   setVolume(volume: number): void {
     this.volume = Math.round(Math.min(1, Math.max(0, volume)) * 100)
@@ -142,6 +164,8 @@ export class YouTubeProvider implements PlayerProvider {
   getDuration(): number { return Number(this.player?.getDuration()) || 0 }
   onEnd(callback: () => void): void { this.endCallback = callback }
   onError(callback: (message: string) => void): void { this.errorCallback = callback }
+  /** Avisa quando o player oficial começa ou para de tocar por conta própria. */
+  onPlaybackChange(callback: (playing: boolean) => void): void { this.stateCallback = callback }
   setEqualizer(_gains: number[]): void {}
   destroy(): void {
     this.player?.destroy()

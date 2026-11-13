@@ -1,8 +1,9 @@
 import type { SearchOptions, SearchPage, Track } from '../../shared/types'
 import { searchArchive } from './archive'
 import { gatherSourceResults } from './results'
-import { filterByQuery, queryTokens } from './archive-rank'
+import { filterByQuery, fold, queryTokens } from './archive-rank'
 import { searchInvidious } from './invidious'
+import type { HttpFetch } from './http'
 
 /** Intercala as listas (1º de cada fonte, 2º de cada fonte...) e remove duplicatas. */
 export function mix(lists: Track[][]): Track[] {
@@ -13,7 +14,8 @@ export function mix(lists: Track[][]): Track[] {
     for (const l of lists) {
       const t = l[i]
       if (!t) continue
-      const key = `${t.title}|${t.artist}`.toLowerCase().replace(/\s+/g, ' ').trim()
+      // Sem acento na chave: "Música Urbana" e "Musica Urbana" são a mesma faixa.
+      const key = `${fold(t.title)}|${fold(t.artist)}`.replace(/\s+/g, ' ').trim()
       if (seen.has(key)) continue
       seen.add(key)
       out.push(t)
@@ -27,20 +29,25 @@ export const MAX_PAGES = 5
 /** Internet Archive é a fonte padrão; YouTube entra por plugin ativo, buscando em instâncias públicas do Invidious. */
 export async function searchPage(
   q: string,
-  options: SearchOptions = { archiveOpenOnly: true }
+  options: SearchOptions = { archiveOpenOnly: false },
+  fetcher?: HttpFetch
 ): Promise<SearchPage> {
   const page = Math.min(MAX_PAGES, Math.max(1, Math.floor(options.page ?? 1)))
-  const jobs: Promise<Track[]>[] = [searchArchive(q, options.archiveOpenOnly, page)]
+  const jobs: Promise<Track[]>[] = [searchArchive(q, options.archiveOpenOnly, page, fetcher)]
   if (options.youtube) {
-    jobs.push(searchInvidious(q, page))
+    jobs.push(searchInvidious(q, page, fetcher))
   }
   const mixed = mix(await gatherSourceResults(jobs))
   const tracks = filterByQuery(mixed, queryTokens(q))
   return { tracks, hasMore: mixed.length > 0 && page < MAX_PAGES }
 }
 
-export async function search(q: string, options: SearchOptions = { archiveOpenOnly: true }): Promise<Track[]> {
-  return (await searchPage(q, options)).tracks
+export async function search(
+  q: string,
+  options: SearchOptions = { archiveOpenOnly: false },
+  fetcher?: HttpFetch
+): Promise<Track[]> {
+  return (await searchPage(q, options, fetcher)).tracks
 }
 
 export async function featured(): Promise<Track[]> {

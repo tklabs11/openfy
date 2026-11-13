@@ -86,6 +86,30 @@ export interface InvidiousSearch {
   instance: string
 }
 
+/**
+ * Escolhe o melhor stream só de áudio da resposta de /api/v1/videos.
+ * AAC (mp4a) vem antes de Opus porque o WebView do Android lida melhor com ele.
+ */
+export function audioStreamOf(data: unknown): { url: string; duration: number } | null {
+  if (!isRecord(data)) return null
+  const formats = Array.isArray(data.adaptiveFormats) ? data.adaptiveFormats : []
+  let best: { url: string; bitrate: number; rank: number } | null = null
+  for (const format of formats) {
+    if (!isRecord(format)) continue
+    const type = typeof format.type === 'string' ? format.type : ''
+    if (!type.startsWith('audio/')) continue
+    const url = typeof format.url === 'string' ? format.url : ''
+    if (!url.startsWith('https://')) continue
+    const rank = type.includes('mp4a') ? 2 : type.includes('opus') ? 1 : 0
+    const bitrate = typeof format.bitrate === 'number' && Number.isFinite(format.bitrate) ? format.bitrate : 0
+    if (!best || rank > best.rank || (rank === best.rank && bitrate > best.bitrate)) best = { url, bitrate, rank }
+  }
+  if (!best) return null
+  const seconds = typeof data.lengthSeconds === 'number' ? data.lengthSeconds : 0
+  const duration = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds) : 0
+  return { url: best.url, duration }
+}
+
 export function searchUrl(instance: string, query: string, page: number): string {
   const params = new URLSearchParams({
     q: query,

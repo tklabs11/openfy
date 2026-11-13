@@ -44,6 +44,26 @@ export const youtube = new YouTubeProvider()
 
 let active: HtmlAudioProvider | YouTubeProvider | null = null
 let token = 0
+
+export type AudioStreamResolver = (track: Track) => Promise<{ url: string; duration?: number } | null>
+
+let audioStreamResolver: AudioStreamResolver | null = null
+
+/** Registra como obter o stream só de áudio de uma faixa do YouTube (Android). */
+export function setAudioStreamResolver(resolver: AudioStreamResolver | null): void {
+  audioStreamResolver = resolver
+}
+
+/** true enquanto o vídeo toca como áudio porque o app está fora da tela. */
+let audioFallback = false
+const audioStreamCache = new Map<string, { url: string; duration?: number }>()
+let enterAudio: (() => boolean) | null = null
+let exitAudio: (() => void) | null = null
+
+/** Android: troca o vídeo atual pelo stream de áudio ao sair do app (sem janela flutuante). */
+export const playYouTubeAsAudio = (): boolean => enterAudio?.() ?? false
+/** Android: volta para o player oficial ao reabrir o app. */
+export const playYouTubeInForeground = (): void => exitAudio?.()
 let fadeTimer: ReturnType<typeof setInterval> | null = null
 function cancelFade(): void { if (fadeTimer) clearInterval(fadeTimer); fadeTimer = null }
 const setAllVolume = (volume: number): void => { audio.setVolume(volume); youtube.setVolume(volume) }
@@ -59,6 +79,13 @@ function fadeVolume(from: number, to: number, seconds: number, done?: () => void
 }
 
 export const usePlayer = create<PlayerState>((set, get) => {
+  const prefetchAudioStream = (track: Track): void => {
+    if (!audioStreamResolver || track.source !== 'youtube' || audioStreamCache.has(track.uri)) return
+    void audioStreamResolver(track)
+      .then((stream) => { if (stream) audioStreamCache.set(track.uri, stream) })
+      .catch(() => {})
+  }
+
   const load = async (i: number, autoplay = true, resume = 0): Promise<void> => {
     const track = get().queue[i]
     if (!track) return
@@ -73,11 +100,23 @@ export const usePlayer = create<PlayerState>((set, get) => {
       prior.pause()
     }
     set({ index: i, position: 0, duration: track.duration ?? 0, error: null, playing: false })
-    const provider = track.source === 'youtube' ? youtube : audio
+    // Fora da tela (Android) o player oficial não toca: a mesma faixa segue pelo
+    // stream só de áudio, sem janela flutuante.
+    let playable: Track = track
+    let provider: HtmlAudioProvider | YouTubeProvider = track.source === 'youtube' ? youtube : audio
+    if (provider === youtube && audioFallback && audioStreamResolver) {
+      const stream = audioStreamCache.get(track.uri) ?? await audioStreamResolver(track).catch(() => null)
+      if (mine !== token) return
+      if (stream) {
+        audioStreamCache.set(track.uri, stream)
+        playable = { ...track, uri: stream.url }
+        provider = audio
+      }
+    }
     if (active && active !== provider) active.pause()
     active = provider
     try {
-      await provider.load(track)
+      await provider.load(playable, resume)
       if (mine !== token) return
       provider.setVolume(get().volume)
       provider.setEqualizer(get().eqGains)
@@ -88,6 +127,10 @@ export const usePlayer = create<PlayerState>((set, get) => {
         if (fade > 0) fadeVolume(0, get().volume, Math.min(fade, 3) / 2)
       }
       try { const ids: string[] = JSON.parse(localStorage.getItem('openfy-history') || '[]'); localStorage.setItem('openfy-history', JSON.stringify([track.id, ...ids.filter(id => id !== track.id)].slice(0, 100))) } catch { /* history optional */ }
+      // Deixa a URL de áudio pronta para a troca instantânea ao sair da tela.
+      prefetchAudioStream(track)
+      const upcoming = get().queue[i + 1]
+      if (upcoming) prefetchAudioStream(upcoming)
       set({ playing: autoplay, position: resume })
     } catch (e) {
       if (mine !== token) return
@@ -107,15 +150,95 @@ export const usePlayer = create<PlayerState>((set, get) => {
   }
 
   const handleError = (message: string): void => {
+    console.warn('[Openfy] Falha na reprodução:', message, audioFallback ? '(modo segundo plano)' : '')
     set({ error: message, playing: false })
     const { index, queue } = get()
     if (index < queue.length - 1) window.setTimeout(() => get().next(true), 1500)
   }
 
+  const startAudioFallback = (track: Track, position: number, stream: { url: string; duration?: number }): void => {
+    // Na janela flutuante a página continua visível e o vídeo segue normalmente.
+    if (!document.hidden) return
+    const state = get()
+    youtube.pause()
+    audioFallback = true
+    active = audio
+    audio.setVolume(state.volume)
+    audio.playDirect(stream.url, position)
+    set({ playing: true, position, duration: stream.duration || state.duration })
+  }
+
+  /**
+   * Síncrono de propósito: o WebView congela logo depois de sair da tela, então
+   * a URL é buscada antes (prefetch) e aqui só começa a tocar.
+   */
+  const enterAudioFallback = (): boolean => {
+    const state = get()
+    const track = state.queue[state.index]
+    if (audioFallback) return true
+    if (!track || track.source !== 'youtube' || !state.playing) return false
+    const position = youtube.getPosition()
+    const cached = audioStreamCache.get(track.uri)
+    if (cached) {
+      startAudioFallback(track, position, cached)
+      return true
+    }
+    if (!audioStreamResolver) return false
+    // Sem cache ainda dá tempo de tentar enquanto o app termina de sair da tela.
+    void audioStreamResolver(track)
+      .then((stream) => {
+        if (!stream) return
+        audioStreamCache.set(track.uri, stream)
+        const current = get()
+        if (audioFallback || !current.playing || current.queue[current.index]?.uri !== track.uri) return
+        startAudioFallback(track, position, stream)
+      })
+      .catch(() => {})
+    return false
+  }
+
+  /** O player do YouTube às vezes ignora o seek inicial: reforça até a posição colar. */
+  const restoreVideoPosition = (position: number): void => {
+    const startedAt = Date.now()
+    for (const delay of [400, 1000, 2000, 3200]) {
+      window.setTimeout(() => {
+        if (audioFallback) return
+        if (get().queue[get().index]?.source !== 'youtube') return
+        if (youtube.getPosition() < position) youtube.seek(position + (Date.now() - startedAt) / 1000)
+      }, delay)
+    }
+  }
+
+  const exitAudioFallback = (): void => {
+    if (!audioFallback) return
+    audioFallback = false
+    const state = get()
+    const track = state.queue[state.index]
+    // Faixas de áudio normais continuam tocando de onde estavam.
+    if (!track || track.source !== 'youtube') return
+    const position = audio.getPosition()
+    audio.pause()
+    // O palco pode estar com outro vídeo: recarrega a faixa atual na posição certa.
+    void load(state.index, state.playing, position)
+    if (state.playing) restoreVideoPosition(position)
+  }
+
+  enterAudio = enterAudioFallback
+  exitAudio = exitAudioFallback
+
   audio.onEnd(handleEnd)
   audio.onError(handleError)
   youtube.onEnd(handleEnd)
   youtube.onError(handleError)
+  // O player do YouTube pausa sozinho quando a página fica oculta: sem isso a
+  // interface e a notificação continuariam dizendo que a música está tocando.
+  youtube.onPlaybackChange((isPlaying) => {
+    // No modo áudio quem manda é o elemento de áudio, não o vídeo pausado.
+    if (audioFallback) return
+    const state = get()
+    if (state.queue[state.index]?.source !== 'youtube') return
+    if (state.playing !== isPlaying) set({ playing: isPlaying })
+  })
 
   const SESSION = 'openfy-last-session-v1'
   const saveSession = (): void => {
@@ -124,6 +247,13 @@ export const usePlayer = create<PlayerState>((set, get) => {
     try { localStorage.setItem(SESSION, JSON.stringify({ queue: queue.slice(0, 250), index: Math.min(index, 249), position, volume, shuffle, repeat })) } catch { /* storage unavailable */ }
   }
   window.addEventListener('beforeunload', saveSession)
+  // Vídeos do YouTube pausam quando a página fica oculta: no Android o app vai
+  // para a janela flutuante (PiP) e continua tocando; ao voltar, retoma se preciso.
+  document.addEventListener('visibilitychange', () => {
+    const state = get()
+    const isYouTube = state.queue[state.index]?.source === 'youtube'
+    if (document.visibilityState === 'visible' && state.playing && isYouTube) youtube.resumeIfPaused()
+  })
   window.setInterval(() => {
     if (get().playing && active) {
       set({ position: active.getPosition(), duration: active.getDuration() || get().duration })
@@ -216,7 +346,7 @@ export const usePlayer = create<PlayerState>((set, get) => {
         active.play()
         if (get().fadeSeconds > 0) fadeVolume(0, get().volume, Math.min(get().fadeSeconds, 2) / 2)
         const track = get().queue[get().index]
-        if (track) recordTaste(track)
+        if (track) { recordTaste(track); prefetchAudioStream(track) }
         set({ playing: true })
       }
     },

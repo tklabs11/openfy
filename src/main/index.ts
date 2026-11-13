@@ -6,6 +6,7 @@ import { basename, extname, join } from 'path'
 import { existsSync, readFileSync, mkdirSync } from 'fs'
 import { pathToFileURL } from 'url'
 import { DEFAULT_DB, type Db, type DesktopPreferences, type MediaKey, type SearchOptions, type Track } from '../shared/types'
+import { sanitizeDb } from '../shared/db-sanitize'
 import { search, searchPage, featured, MAX_PAGES } from './sources'
 import { getLyrics } from './lyrics'
 import { findLocalCover } from './local-covers'
@@ -13,6 +14,9 @@ import { invidiousLastError, checkInvidious } from './sources/invidious'
 import { discordPresence } from './discordPresence'
 import { startMpris, type MprisHandle } from './mpris'
 import { appUpdates } from './updates'
+import type { HttpFetch } from './sources/http'
+
+const desktopFetch: HttpFetch = (url, init) => net.fetch(url, init)
 
 // Keep the existing userData path unchanged to preserve libraries and settings.
 // Chromium cache is disposable and belongs in a per-user local directory.
@@ -135,36 +139,9 @@ protocol.registerSchemesAsPrivileged([
 
 const dbPath = (): string => join(app.getPath('userData'), 'openfy-data.json')
 
-const KNOWN_SOURCES = new Set(['local', 'audius', 'jamendo', 'archive', 'openverse', 'librivox', 'youtube'])
-
 async function readDb(): Promise<Db> {
   try {
-    const raw = JSON.parse(await fs.readFile(dbPath(), 'utf8'))
-    // Dados de versões antigas podem ter faixas de fontes removidas: descarta.
-    const tracks: Track[] = (Array.isArray(raw.tracks) ? raw.tracks : []).filter((t: Track) =>
-      KNOWN_SOURCES.has(t?.source)
-    )
-    const ids = new Set(tracks.map((t) => t.id))
-    const liked: string[] = (Array.isArray(raw.liked) ? raw.liked : []).filter((id: string) => ids.has(id))
-    const playlists = (Array.isArray(raw.playlists) ? raw.playlists : []).map((p: Db['playlists'][number]) => {
-      const trackIds = (Array.isArray(p.trackIds) ? p.trackIds : []).filter((id) => ids.has(id))
-      const trackIdSet = new Set(trackIds)
-      const trackAddedAt = p.trackAddedAt && typeof p.trackAddedAt === 'object' && !Array.isArray(p.trackAddedAt)
-        ? Object.fromEntries(Object.entries(p.trackAddedAt).filter(([id, addedAt]) =>
-            trackIdSet.has(id) && typeof addedAt === 'number' && Number.isFinite(addedAt)
-          ))
-        : undefined
-      return { ...p, trackIds, trackAddedAt }
-    })
-    return {
-      tracks,
-      liked,
-      playlists,
-      settings: {
-        volume: typeof raw.settings?.volume === 'number' ? raw.settings.volume : DEFAULT_DB.settings.volume,
-        automaticLocalCovers: raw.settings?.automaticLocalCovers === true
-      }
-    }
+    return sanitizeDb(JSON.parse(await fs.readFile(dbPath(), 'utf8')))
   } catch {
     return structuredClone(DEFAULT_DB)
   }
@@ -273,11 +250,11 @@ function registerIpc(): void {
   const searchText = (q: unknown): string => (typeof q === 'string' ? q.trim().slice(0, 100) : '')
   ipcMain.handle('api:search', async (_e, q: unknown, opts: unknown) => {
     const query = searchText(q)
-    return query ? search(query, searchOptions(opts)) : []
+    return query ? search(query, searchOptions(opts), desktopFetch) : []
   })
   ipcMain.handle('api:searchPage', async (_e, q: unknown, opts: unknown) => {
     const query = searchText(q)
-    return query ? searchPage(query, searchOptions(opts)) : { tracks: [], hasMore: false }
+    return query ? searchPage(query, searchOptions(opts), desktopFetch) : { tracks: [], hasMore: false }
   })
 
   ipcMain.handle('api:lyrics', (_e, title: unknown, artist: unknown, duration: unknown) => {
@@ -288,7 +265,7 @@ function registerIpc(): void {
     const validDuration = typeof duration === 'number' && Number.isFinite(duration) && duration > 0
       ? Math.min(duration, 24 * 60 * 60)
       : undefined
-    return getLyrics(title.trim(), artist.trim(), validDuration)
+    return getLyrics(title.trim(), artist.trim(), validDuration, desktopFetch)
   })
 
   ipcMain.handle('api:findLocalCover', (_e, title: unknown, artist: unknown) => {
@@ -300,7 +277,7 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('youtube:status', () => ({ lastError: invidiousLastError() }))
-  ipcMain.handle('youtube:test', () => checkInvidious())
+  ipcMain.handle('youtube:test', () => checkInvidious(desktopFetch))
 
   ipcMain.handle('api:featured', () => featured())
 }

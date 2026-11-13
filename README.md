@@ -3,7 +3,7 @@
 Player de música desktop (Electron + React + TypeScript), código aberto (MIT), visual inspirado em apps de streaming.
 
 ## Fontes de música
-- **Internet Archive**: fonte padrão da busca online, sem chave; por padrão, mostra resultados com licenças abertas.
+- **Internet Archive**: fonte padrão da busca online, sem chave. Usa a mesma busca do site do Archive (ordenação por relevância). O filtro "só licenças abertas" fica em **Configurações → Busca** e vem desligado.
 - **YouTube**: ativado por padrão. Busca em instâncias públicas do Invidious, sem chave de API, e reproduz vídeos no player oficial incorporado; o Openfy não extrai nem baixa áudio. Pode ser desativado em **Configurações → Desenvolvedor**.
 - **Arquivos locais**: mp3, flac, wav, ogg, m4a, aac, opus via "Músicas salvas".
 
@@ -40,6 +40,26 @@ O AppImage precisa do FUSE 2 (`libfuse2` no Debian/Ubuntu, `fuse-libs` no Fedora
 No Ubuntu 23.10 e mais recente o AppArmor restringe user namespaces para aplicativos abertos pela sessão gráfica. O `.deb` configura o helper SUID do Chromium na instalação, e o AppImage detecta a restrição e inicia com `--no-sandbox` automaticamente. No Ubuntu, prefira o `.deb`.
 
 Atualização automática: no Linux funciona pelo AppImage; nos pacotes `.deb`/`.rpm`, atualize pelo gerenciador. Teclas de mídia e o painel de mídia do GNOME/KDE funcionam via MPRIS. A bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator).
+
+## Android (primeira versão)
+
+A versão Android usa [Capacitor](https://capacitorjs.com) e reaproveita a interface React. No celular a navegação vira abas — **Início**, **Buscar** e **Biblioteca** —, com mini-player fixo acima da barra e player em tela cheia ao tocar na faixa.
+
+Áudio e controles:
+- Faixas de áudio (ex.: Internet Archive) continuam tocando em segundo plano. Um serviço em primeiro plano mantém o app vivo e uma `MediaSession` nativa alimenta a notificação, a tela de bloqueio e os botões do fone, com play, pausar, anterior, próxima e seek.
+- Vídeos do YouTube pausam quando a página fica oculta — limitação do player oficial. Para não interromper a música, ao sair do app a faixa passa a tocar pelo stream só de áudio do Invidious e volta para o vídeo na posição certa quando o app reaparece: **sem nenhuma janela na frente dos outros aplicativos**. Quem preferir o vídeo visível pode ligar **Configurações → Segundo plano → Vídeo em janela flutuante**, ou usar o botão de janela flutuante no player.
+
+Este primeiro corte cobre busca online (Internet Archive e YouTube via Invidious), reprodução, biblioteca, favoritos e playlists. Arquivos locais e integrações de desktop (bandeja, Discord, atualização automática) ainda não estão disponíveis.
+
+```bash
+npm ci
+npm run build:android   # gera a interface em out/android
+npm run cap:sync        # copia a interface para android/
+npm run cap:open        # abre o projeto no Android Studio
+npm run android:apk     # gera o APK de debug
+```
+
+Para gerar o APK é preciso JDK 21 e o Android SDK (o Android Studio instala os dois). A biblioteca fica no armazenamento do próprio WebView do app; não há servidor.
 
 ## Estrutura
 ```

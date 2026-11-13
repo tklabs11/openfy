@@ -1,0 +1,14 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Openfy</string>
+    <string name="title_activity_main">Openfy</string>
+    <string name="package_name">com.openfy.app</string>
+    <string name="custom_url_scheme">com.openfy.app</string>
+    <string name="playback_channel_name">Reprodução</string>
+    <string name="playback_notification_title">Openfy está tocando</string>
+    <string name="playback_notification_text">A música continua em segundo plano.</string>
+    <string name="playback_previous">Anterior</string>
+    <string name="playback_next">Próxima</string>
+    <string name="playback_play">Tocar</string>
+    <string name="playback_pause">Pausar</string>
+</resources>

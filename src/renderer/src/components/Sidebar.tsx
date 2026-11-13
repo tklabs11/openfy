@@ -10,6 +10,7 @@ export type View =
   | { type: 'themes' }
   | { type: 'developer' }
   | { type: 'saved' }
+  | { type: 'library' }
   | { type: 'playlist'; id: string }
 
 interface Props {

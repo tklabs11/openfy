@@ -5,6 +5,8 @@ declare global {
 
   interface Window {
     api: OpenfyApi
+    /** Verdadeiro quando a interface roda no WebView do Android. */
+    openfyMobile?: boolean
   }
 }
 

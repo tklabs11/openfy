@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Track } from '../../shared/types'
-import { getJson } from './http'
+import { getJson, type HttpFetch } from './http'
 import { licenseFromUrl } from './licenses'
-import { buildArchiveQuery } from './archive-query'
-import { queryTokens, rankTracks, recallTerms, selectTracks } from './archive-rank'
+import { buildArchiveQuery, LICENSE_FILTER, sanitizeArchiveQuery, siteSearchIdentifiers } from './archive-query'
+import { queryTokens, recallTerms, scoreTrack, selectTracks } from './archive-rank'
 import { mapPool } from './pool'
 
+// Mesma busca do site (archive.org/search): relevância do próprio Archive.
+const SITE_SEARCH = 'https://archive.org/services/search/beta/page_production/'
+// Reserva: usada só quando a busca do site não responde.
 const SEARCH = 'https://archive.org/advancedsearch.php'
 const META = 'https://archive.org/metadata/'
 const DOWNLOAD = 'https://archive.org/download/'
@@ -79,30 +82,67 @@ export function tracksFromMetadata(id: string, d: any): Track[] {
   return out
 }
 
-export async function searchArchive(q: string, onlyOpen: boolean = true, page: number = 1): Promise<Track[]> {
-  const terms = queryTokens(q)
+/**
+ * Identificadores dos itens que casam com a busca, na mesma ordenação de
+ * relevância do site. Se a busca do site falhar, cai para o advancedsearch.
+ */
+async function searchItemIds(q: string, onlyOpen: boolean, page: number, rows: number, fetcher?: HttpFetch): Promise<string[]> {
+  const cleaned = sanitizeArchiveQuery(q)
+  if (!cleaned) return []
+  const filter = 'mediatype:audio' + (onlyOpen ? ` AND ${LICENSE_FILTER}` : '')
+  const query = `${cleaned} AND ${filter}`
+
+  try {
+    const p = new URLSearchParams({
+      user_query: query,
+      hits_per_page: String(rows),
+      page: String(page),
+      aggregations: 'false'
+    })
+    const ids = siteSearchIdentifiers(await getJson(`${SITE_SEARCH}?${p}`, 12000, fetcher))
+    if (ids.length) return ids
+  } catch {
+    // Busca do site fora do ar: tenta a consulta clássica abaixo.
+  }
+
   const words = recallTerms(cleanTerms(q))
   if (!words.length) return []
-
   const p = new URLSearchParams({
     q: buildArchiveQuery(words, onlyOpen),
-    rows: String(terms.length > 1 ? ROWS_MULTI : ROWS_SINGLE),
-    page: String(Math.max(1, Math.floor(page))),
+    rows: String(rows),
+    page: String(page),
     output: 'json'
   })
-  for (const f of ['identifier', 'title', 'creator']) p.append('fl[]', f)
+  p.append('fl[]', 'identifier')
+  const res = await getJson(`${SEARCH}?${p}`, 12000, fetcher)
+  return (res?.response?.docs ?? []).map((d: any) => d?.identifier).filter(Boolean)
+}
 
-  const res = await getJson(`${SEARCH}?${p}`)
-  const ids: string[] = (res?.response?.docs ?? []).map((d: any) => d?.identifier).filter(Boolean)
+export async function searchArchive(
+  q: string,
+  onlyOpen: boolean = false,
+  page: number = 1,
+  fetcher?: HttpFetch
+): Promise<Track[]> {
+  const terms = queryTokens(q)
+  if (!terms.length) return []
+  const ids = await searchItemIds(q, onlyOpen, Math.max(1, Math.floor(page)), terms.length > 1 ? ROWS_MULTI : ROWS_SINGLE, fetcher)
 
   const lists = await mapPool(ids, POOL, async (id) => {
     const cached = metaCache.get(id)
     if (cached) return cached
-    const tracks = tracksFromMetadata(id, await getJson(META + encodeURIComponent(id), 6000))
+    const tracks = tracksFromMetadata(id, await getJson(META + encodeURIComponent(id), 6000, fetcher))
     remember(id, tracks)
     return tracks
   }, BUDGET_MS)
+  // A ordem dos itens já é a relevância do site: mantém e ordena só dentro de cada item.
+  // Item do próprio artista rende o disco inteiro; o resto vira amostra de 3 faixas,
+  // para um item que só cita o nome na descrição não encher a lista de música alheia.
   const picked: Track[] = []
-  for (const list of lists) if (list) picked.push(...selectTracks(list, terms, PER_ITEM))
-  return rankTracks(picked, terms).slice(0, MAX_TOTAL)
+  for (const list of lists) {
+    if (!list?.length) continue
+    const byArtist = scoreTrack(terms, { title: '', artist: list[0].artist, album: '' }) > 0
+    picked.push(...selectTracks(list, terms, byArtist ? PER_ITEM : 3))
+  }
+  return picked.slice(0, MAX_TOTAL)
 }

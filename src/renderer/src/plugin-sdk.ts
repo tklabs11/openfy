@@ -14,7 +14,7 @@ export function describeEffect(effect: PluginEffect): string {
   }
   return effect.value === 'off'
     ? 'Busca do Internet Archive: sem filtro de licença (mostra também áudio com direitos reservados).'
-    : 'Busca do Internet Archive: somente licenças abertas (padrão).'
+    : 'Busca do Internet Archive: somente licenças abertas.'
 }
 
 export type PluginManifest = {schemaVersion:1;id:string;name:string;version:string;author:string;description:string;kind:'integration'|'visualizer'|'utility';permissions:string[];effects?:PluginEffect[];homepage?:string}
@@ -55,11 +55,23 @@ export function savePlugins(plugins:PluginManifest[]):void{localStorage.setItem(
 export function readEnabled():string[]{try{const raw=JSON.parse(localStorage.getItem(ENABLED_KEY)||'[]');return Array.isArray(raw)?raw.filter((x):x is string=>typeof x==='string').slice(0,100):[]}catch{return []}}
 const notify=()=>{if(typeof window!=='undefined')window.dispatchEvent(new Event(PLUGINS_CHANGED))}
 export function saveEnabled(ids:string[]):void{localStorage.setItem(ENABLED_KEY,JSON.stringify(ids));notify()}
+const OPEN_ONLY_KEY='openfy-archive-open-only'
+/** Filtro de licença do Internet Archive: desligado por padrão (busca igual à do site). */
+export function archiveOpenOnly():boolean{try{return localStorage.getItem(OPEN_ONLY_KEY)==='1'}catch{return false}}
+export function setArchiveOpenOnly(value:boolean):void{
+ try{localStorage.setItem(OPEN_ONLY_KEY,value?'1':'0')}catch{/* armazenamento indisponível */}
+ notify()
+}
 export function resolveSearchOptions(plugins:PluginManifest[],enabled:string[]):SearchOptions{
  const active=plugins.filter(p=>enabled.includes(p.id))
- const relaxed=active.some(p=>p.permissions.includes('search.configure')&&(p.effects??[]).some(e=>e.type==='search.archive-license-filter'&&e.value==='off'))
+ const declared=active
+  .flatMap(p=>p.permissions.includes('search.configure')?(p.effects??[]):[])
+  .filter(e=>e.type==='search.archive-license-filter')
+  .map(e=>e.value)
+  .pop()
+ const openOnly=declared==='open-only'?true:declared==='off'?false:archiveOpenOnly()
  const youtube=active.some(p=>p.permissions.includes('sources.youtube')&&(p.effects??[]).some(e=>e.type==='source.youtube'))
- return {archiveOpenOnly:!relaxed,...(youtube?{youtube:true}:{})}
+ return {archiveOpenOnly:openOnly,...(youtube?{youtube:true}:{})}
 }
 export function downloadJson(name:string,data:unknown):void{const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 

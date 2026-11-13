@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { importTypeScript } from './load-typescript.mjs'
 
-const { fold, tokenize, queryTokens, recallTerms, scoreTrack, rankTracks, selectTracks, filterByQuery, minScore } =
+const { fold, tokenize, queryTokens, recallTerms, scoreTrack, rankTracks, selectTracks, filterByQuery, minScore, repeatsAlbum } =
   await importTypeScript('../src/main/sources/archive-rank.ts')
 const { mapPool } = await importTypeScript('../src/main/sources/pool.ts')
-const { buildArchiveQuery } = await importTypeScript('../src/main/sources/archive-query.ts')
+const { buildArchiveQuery, sanitizeArchiveQuery, siteSearchIdentifiers } = await importTypeScript('../src/main/sources/archive-query.ts')
 
 const t = (title, artist = 'Orochi', album = 'Orochi - Lobo (2021)') => ({ title, artist, album })
 
@@ -46,11 +46,44 @@ test('selectTracks keeps matching tracks from long albums and falls back to the 
   assert.equal(selectTracks(album, queryTokens('inexistente')).length, 3)
 })
 
-test('buildArchiveQuery joins terms with OR and keeps the license filter by default', () => {
+test('buildArchiveQuery requires all terms instead of accepting any one of them', () => {
   const q = buildArchiveQuery(['orochi', 'balão'])
-  assert.match(q, /title:\(orochi OR balão\)/)
-  assert.match(q, /creativecommons\.org/)
-  assert.doesNotMatch(buildArchiveQuery(['orochi'], false), /creativecommons/)
+  assert.match(q, /title:\(orochi AND balão\)/)
+  assert.match(q, /title:\("orochi balão"\)\^4/)
+  assert.doesNotMatch(q, /title:\(orochi OR balão\)/)
+  assert.match(q, /mediatype:audio/)
+})
+
+test('buildArchiveQuery keeps the license filter only when asked', () => {
+  assert.doesNotMatch(buildArchiveQuery(['orochi']), /creativecommons/)
+  assert.match(buildArchiveQuery(['orochi'], true), /creativecommons\.org/)
+})
+
+test('sanitizeArchiveQuery removes Lucene syntax that breaks the search', () => {
+  assert.equal(sanitizeArchiveQuery('AC/DC'), 'AC DC')
+  assert.equal(sanitizeArchiveQuery("guns n' roses"), 'guns n roses')
+  assert.equal(sanitizeArchiveQuery('(legiao) AND urbana ^ "x"'), 'legiao AND urbana x')
+  assert.equal(sanitizeArchiveQuery('   '), '')
+})
+
+test('siteSearchIdentifiers reads the site search response', () => {
+  const data = {
+    response: {
+      body: {
+        hits: {
+          hits: [
+            { fields: { identifier: 'legiao-urbana-1985', title: 'Legião Urbana' } },
+            { fields: { identifier: 'legiao-urbana-1985' } },
+            { fields: {} },
+            { fields: { identifier: 'perfil-legiao-urbana' } }
+          ]
+        }
+      }
+    }
+  }
+  assert.deepEqual(siteSearchIdentifiers(data), ['legiao-urbana-1985', 'perfil-legiao-urbana'])
+  assert.deepEqual(siteSearchIdentifiers(null), [])
+  assert.deepEqual(siteSearchIdentifiers({ response: { body: {} } }), [])
 })
 
 test('mapPool respects the concurrency limit and survives failures', async () => {
@@ -91,13 +124,17 @@ test('long searches match the WHOLE search, not isolated words', () => {
     { title: 'Voz do Coração', artist: 'MC Cabelinho', album: 'Single' }
   ]
   const out = filterByQuery(tracks, terms).map((t) => t.title)
-  assert.deepEqual(out, ['Voz do Coração', 'Vai dar ruim'])
+  // Descarta quem só casa com uma palavra; a ordem da fonte é preservada.
+  assert.deepEqual(out, ['Vai dar ruim', 'Voz do Coração'])
 })
 
-test('short searches keep partial matches but rank the full match first', () => {
+test('short searches keep partial matches in the order the source sent them', () => {
   const terms = queryTokens('orochi balão')
   const out = filterByQuery([t('Lobo'), t('Balão')], terms).map((x) => x.title)
-  assert.deepEqual(out, ['Balão', 'Lobo'])
+  assert.deepEqual(out, ['Lobo', 'Balão'])
+  // Dentro do item quem casa com a busca vem primeiro.
+  const item = [t('Lobo'), t('Balão'), t('Intro')]
+  assert.deepEqual(selectTracks(item, terms).map((x) => x.title), ['Balão', 'Lobo', 'Intro'])
 })
 
 test('a word split by a stray space in the title still matches ("BALÃ O" = balão)', () => {
@@ -112,4 +149,15 @@ test('a word split by a stray space in the title still matches ("BALÃ O" = bal�
 test('hyphenated file names match term by term', () => {
   const terms = queryTokens('orochi balão 2')
   assert.equal(scoreTrack(terms, { title: 'orochi-balao-prod-dallass', artist: 'aaa', album: '' }), 2)
+})
+
+test('tracks that just repeat the item name do not outrank the songs', () => {
+  const terms = queryTokens('legiao urbana')
+  const item = [
+    t('Legião Urbana na Rádio', 'Legião Urbana', 'Legião Urbana na Rádio'),
+    t('Ainda É Cedo', 'Legião Urbana', 'Legião Urbana na Rádio')
+  ]
+  assert.deepEqual(selectTracks(item, terms).map((x) => x.title), ['Ainda É Cedo', 'Legião Urbana na Rádio'])
+  assert.equal(repeatsAlbum(item[0]), true)
+  assert.equal(repeatsAlbum(item[1]), false)
 })

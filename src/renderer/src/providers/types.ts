@@ -1,7 +1,7 @@
 import type { Track } from '@shared/types'
 
 export interface PlayerProvider {
-  load(track: Track): Promise<void>
+  load(track: Track, startAt?: number): Promise<void>
   play(): void
   pause(): void
   seek(seconds: number): void

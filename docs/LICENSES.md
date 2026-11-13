@@ -5,7 +5,7 @@ Este projeto não raspa plataformas proprietárias e não inclui ferramentas de 
 
 | Fonte | Uso no Openfy | Chave | Observações |
 |-------|---------------|-------|-------------|
-| Internet Archive | Busca e stream de áudio (padrão) | Não | Por padrão, a busca limita resultados a licenças abertas. O filtro pode ser alterado por um efeito de manifesto ativado explicitamente. Itens de acesso restrito são ignorados. |
+| Internet Archive | Busca e stream de áudio (padrão) | Não | Usa a busca do próprio site (relevância do Archive). Por padrão mostra o mesmo que o site, incluindo gravações enviadas por terceiros; a opção **Configurações → Busca → Só conteúdo com licença aberta** limita a itens Creative Commons e também pode ser forçada por efeito de manifesto (`search.archive-license-filter`). Itens de acesso restrito são ignorados. |
 | YouTube | Busca e reprodução pelo player oficial incorporado | Não (instâncias públicas do Invidious) | Ativado por padrão e pode ser desativado em **Configurações → Desenvolvedor** (efeito `source.youtube`). A busca usa instâncias públicas mantidas pela comunidade, sem chave de API e sem cota do usuário. O Openfy não extrai nem baixa áudio. Cada vídeo continua sujeito aos termos e direitos definidos pelo YouTube e pelos titulares. |
 | Arquivos locais | Reprodução de arquivos do próprio usuário | Não | Responsabilidade do usuário. |
 

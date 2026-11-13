@@ -1,5 +1,5 @@
-import { net } from 'electron'
 import type { LyricsSearchResult } from '../shared/types'
+import type { HttpFetch } from './sources/http'
 import { mapLyricsResponse } from './lyrics-mapper'
 
 const API = 'https://lrclib.net/api/get'
@@ -23,7 +23,12 @@ function rateLimitedResult(now: number): LyricsSearchResult {
   return { status: 'rate-limited', retryAfterMs: Math.max(1_000, rateLimitedUntil - now) }
 }
 
-export function getLyrics(title: string, artist: string, duration?: number): Promise<LyricsSearchResult> {
+export function getLyrics(
+  title: string,
+  artist: string,
+  duration?: number,
+  fetcher: HttpFetch = (url, init) => globalThis.fetch(url, init)
+): Promise<LyricsSearchResult> {
   const params = new URLSearchParams({ track_name: title, artist_name: artist })
   if (duration !== undefined && Number.isFinite(duration) && duration > 0) {
     params.set('duration', String(Math.round(duration)))
@@ -44,7 +49,7 @@ export function getLyrics(title: string, artist: string, duration?: number): Pro
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 10_000)
     try {
-      const response = await net.fetch(`${API}?${params}`, { signal: controller.signal })
+      const response = await fetcher(`${API}?${params}`, { signal: controller.signal })
       const result = await mapLyricsResponse(response)
       if (result.status === 'rate-limited') {
         rateLimitedUntil = Date.now() + result.retryAfterMs

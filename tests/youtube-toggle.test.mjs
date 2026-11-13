@@ -22,7 +22,7 @@ test('activating the built-in source persists the manifest and enables it', () =
   const enabled = readEnabled()
   assert.equal(youtubeSearchEnabled(plugins, enabled), true)
   assert.equal(youtubeSearchEnabled(plugins, []), false)
-  assert.deepEqual(resolveSearchOptions(plugins, enabled), { archiveOpenOnly: true, youtube: true })
+  assert.deepEqual(resolveSearchOptions(plugins, enabled), { archiveOpenOnly: false, youtube: true })
 
   saveEnabled(enabled.filter((id) => id !== YOUTUBE_BUILTIN.id))
   assert.equal(youtubeSearchEnabled(readPlugins(), readEnabled()), false)

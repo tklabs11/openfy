@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { importTypeScript } from './load-typescript.mjs'
 
-const { parseInvidiousInstances, mapInvidious, searchInvidiousInstances, searchUrl } =
+const { parseInvidiousInstances, mapInvidious, searchInvidiousInstances, searchUrl, audioStreamOf } =
   await importTypeScript('../src/shared/invidious.ts')
 
 const video = {
@@ -83,4 +83,22 @@ test('reports failure when every instance fails', async () => {
     searchInvidiousInstances(['https://down.example'], async () => { throw new Error('HTTP 502') }, 'lofi', 1),
     /Nenhuma instância pública do Invidious respondeu.*HTTP 502/s
   )
+})
+
+test('picks the best audio-only stream for background playback', () => {
+  const stream = audioStreamOf({
+    lengthSeconds: 213.4,
+    adaptiveFormats: [
+      { type: 'video/mp4; codecs="avc1.42001E"', url: 'https://rr1.googlevideo.com/videoplayback?itag=18', bitrate: 400000 },
+      { type: 'audio/webm; codecs="opus"', url: 'https://rr1.googlevideo.com/videoplayback?itag=251', bitrate: 160000 },
+      { type: 'audio/mp4; codecs="mp4a.40.2"', url: 'https://rr1.googlevideo.com/videoplayback?itag=140', bitrate: 130000 },
+      { type: 'audio/mp4; codecs="mp4a.40.5"', url: 'http://insecure.example/audio', bitrate: 50000 }
+    ]
+  })
+  assert.deepEqual(stream, { url: 'https://rr1.googlevideo.com/videoplayback?itag=140', duration: 213 })
+})
+
+test('has no audio stream when the response only has video', () => {
+  assert.equal(audioStreamOf({ adaptiveFormats: [{ type: 'video/mp4', url: 'https://rr1.googlevideo.com/videoplayback' }] }), null)
+  assert.equal(audioStreamOf(null), null)
 })

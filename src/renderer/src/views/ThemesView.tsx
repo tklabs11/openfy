@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { builtInThemes, themeEffects, themeStore, useThemes, type Theme, type ThemeNeonElement } from '../themes'
+import { isMobileApp } from '../platform'
 import { currentTrack, usePlayer } from '../player'
 
 const neonElements: { id: ThemeNeonElement; label: string }[] = [
@@ -220,8 +221,8 @@ export function ThemesView() {
               })} />{element.label}</label>)}</div>
             </EditorSection>
             <EditorSection title="Plano de fundo">
-              <label>Modo<select value={editing.background?.mode ?? 'solid'} onChange={event => updateEditing(theme => ({ ...theme, background: { ...themeEffects(theme).background, mode: event.target.value as NonNullable<Theme['background']>['mode'] } }))}><option value="solid">Cor sólida do tema</option><option value="custom">Imagem personalizada</option><option value="album">Capa da música atual</option></select></label>
-              {editing.background?.mode === 'custom' && <div className="theme-background-picker">
+              <label>Modo<select value={editing.background?.mode ?? 'solid'} onChange={event => updateEditing(theme => ({ ...theme, background: { ...themeEffects(theme).background, mode: event.target.value as NonNullable<Theme['background']>['mode'] } }))}><option value="solid">Cor sólida do tema</option>{!isMobileApp() && <option value="custom">Imagem personalizada</option>}<option value="album">Capa da música atual</option></select></label>
+              {!isMobileApp() && editing.background?.mode === 'custom' && <div className="theme-background-picker">
                 {editing.background.image ? <img src={editing.background.image} alt="Prévia do fundo personalizado" /> : <span>Escolha uma imagem PNG, JPEG ou WebP (até 12 MB).</span>}
                 <button type="button" onClick={() => void chooseBackground()}>Escolher imagem</button>
                 {editing.background.image && <button type="button" onClick={() => updateEditing(theme => ({ ...theme, background: { ...themeEffects(theme).background, mode: 'solid', image: undefined } }))}>Remover imagem</button>}

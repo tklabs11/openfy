@@ -38,20 +38,18 @@ test('manifests without effects keep working', () => {
   assert.equal(m.effects, undefined)
 })
 
-test('default is the restrictive filter; only an ENABLED plugin relaxes it', () => {
-  const plugin = validateManifest(wide)
-  assert.deepEqual(resolveSearchOptions([], []), { archiveOpenOnly: true })
-  assert.deepEqual(resolveSearchOptions([plugin], []), { archiveOpenOnly: true })
-  assert.deepEqual(resolveSearchOptions([plugin], ['pessoal.busca-ampla']), { archiveOpenOnly: false })
-  assert.deepEqual(resolveSearchOptions([plugin], ['outro.plugin']), { archiveOpenOnly: true })
+test('sem plugin, a busca do Archive mostra tudo (igual ao site)', () => {
+  assert.deepEqual(resolveSearchOptions([], []), { archiveOpenOnly: false })
+  const relaxed = validateManifest(wide)
+  assert.deepEqual(resolveSearchOptions([relaxed], []), { archiveOpenOnly: false })
+  assert.deepEqual(resolveSearchOptions([relaxed], ['pessoal.busca-ampla']), { archiveOpenOnly: false })
+  assert.deepEqual(resolveSearchOptions([relaxed], ['outro.plugin']), { archiveOpenOnly: false })
 })
 
-test('disabling goes back to the restrictive default', () => {
-  const plugin = validateManifest(wide)
-  let enabled = ['pessoal.busca-ampla']
-  assert.equal(resolveSearchOptions([plugin], enabled).archiveOpenOnly, false)
-  enabled = enabled.filter((id) => id !== 'pessoal.busca-ampla')
-  assert.equal(resolveSearchOptions([plugin], enabled).archiveOpenOnly, true)
+test('an ENABLED plugin can force the restrictive filter', () => {
+  const strict = validateManifest({ ...wide, effects: [{ type: 'search.archive-license-filter', value: 'open-only' }] })
+  assert.equal(resolveSearchOptions([strict], []).archiveOpenOnly, false)
+  assert.equal(resolveSearchOptions([strict], [strict.id]).archiveOpenOnly, true)
 })
 
 test('an explicit open-only effect never relaxes the filter', () => {
@@ -72,13 +70,13 @@ test('YouTube source is included only when an active manifest declares its permi
     effects: [{ type: 'source.youtube', value: 'on' }]
   }
   const plugin = validateManifest(youtube)
-  assert.deepEqual(resolveSearchOptions([plugin], []), { archiveOpenOnly: true })
-  assert.deepEqual(resolveSearchOptions([plugin], [plugin.id]), { archiveOpenOnly: true, youtube: true })
+  assert.deepEqual(resolveSearchOptions([plugin], []), { archiveOpenOnly: false })
+  assert.deepEqual(resolveSearchOptions([plugin], [plugin.id]), { archiveOpenOnly: false, youtube: true })
   assert.throws(() => validateManifest({ ...youtube, permissions: [] }), /exige a permissão sources\.youtube/)
 })
 
-test('archive query keeps the Creative Commons filter unless told otherwise', () => {
-  assert.match(buildArchiveQuery('orochi'), /creativecommons\.org/)
+test('archive query applies the Creative Commons filter only when asked', () => {
+  assert.doesNotMatch(buildArchiveQuery('orochi'), /creativecommons/)
   assert.match(buildArchiveQuery('orochi', true), /creativecommons\.org/)
   assert.doesNotMatch(buildArchiveQuery('orochi', false), /creativecommons/)
   assert.match(buildArchiveQuery('orochi', false), /mediatype:audio/)
@@ -90,5 +88,5 @@ test('the built-in YouTube manifest is valid and activates the source in one cli
   assert.equal(youtubeSearchEnabled([builtin], []), false)
   assert.equal(youtubeSearchEnabled([builtin], [builtin.id]), true)
   assert.equal(youtubeSearchEnabled([builtin], ['outro.plugin']), false)
-  assert.deepEqual(resolveSearchOptions([builtin], [builtin.id]), { archiveOpenOnly: true, youtube: true })
+  assert.deepEqual(resolveSearchOptions([builtin], [builtin.id]), { archiveOpenOnly: false, youtube: true })
 })

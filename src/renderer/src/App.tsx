@@ -16,11 +16,17 @@ import { SavedView } from './views/SavedView'
 import { PlaylistView } from './views/PlaylistView'
 import { useLibrary } from './library'
 import { usePlayer } from './player'
+import { isMobileApp } from './platform'
+import { syncBackgroundAudio } from './mobile/backgroundAudio'
+import { syncYouTubeBackground } from './mobile/youtubeBackground'
+import { MobileApp } from './mobile/MobileApp'
+import { usePhoneLayout } from './mobile/usePhoneLayout'
 import type { Track } from '@shared/types'
 import { PlaylistDetailsDialog, type PlaylistDetails } from './components/PlaylistDetailsDialog'
 
 export default function App() {
   const ready = useLibrary((s) => s.ready)
+  const phone = usePhoneLayout()
   const hasTrack = usePlayer((s) => s.index >= 0)
   const youtubeTrack = usePlayer((s) => s.queue[s.index]?.source === 'youtube')
   const [view, setView] = useState<View>({ type: 'home' })
@@ -78,6 +84,18 @@ export default function App() {
     })
   }, [])
 
+  // Android: mantém o áudio em segundo plano e publica a faixa nos controles do sistema.
+  useEffect(() => {
+    if (!isMobileApp()) return
+    return syncBackgroundAudio()
+  }, [])
+
+  // Android: vídeos do YouTube continuam como áudio quando o app sai da tela.
+  useEffect(() => {
+    if (!isMobileApp()) return
+    return syncYouTubeBackground()
+  }, [])
+
   useEffect(() => {
     let lastTrackId = ''
     const sync = (): void => {
@@ -116,6 +134,9 @@ export default function App() {
   }, [])
 
   if (!ready) return <div className="loading">Carregando…</div>
+
+  // No celular a navegação é por abas, com mini-player e player em tela cheia.
+  if (phone) return <MobileApp />
 
   return (
     <div className={'app' + (hasTrack && panelVisible ? ' np-on' : '') + (youtubeTrack ? ' youtube-on' : '')}>

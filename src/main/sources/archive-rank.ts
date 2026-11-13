@@ -69,11 +69,22 @@ const titleScore = (terms: string[], t: Rankable): number => {
   return terms.filter((q) => matches(q, hay)).length
 }
 
-/** Ordena por pontuação (mais termos primeiro); em empate, quem tem o termo no título; depois a ordem original. */
+/**
+ * Título que repete o nome do álbum/item costuma ser o item inteiro (entrevista,
+ * show, podcast) e não uma faixa do disco. Buscar "legião urbana" não deve abrir
+ * com a entrevista da rádio.
+ */
+export const repeatsAlbum = (t: Rankable): boolean => {
+  const album = fold(t.album ?? '').trim()
+  const title = fold(t.title).trim()
+  return album.length >= 3 && title.length >= 3 && (title === album || title.includes(album))
+}
+
+/** Ordena por pontuação (mais termos primeiro); depois faixas de disco, título e a ordem original. */
 export function rankTracks<T extends Rankable>(tracks: T[], terms: string[]): T[] {
   return tracks
-    .map((t, i) => ({ t, i, s: scoreTrack(terms, t), ts: titleScore(terms, t) }))
-    .sort((a, b) => b.s - a.s || b.ts - a.ts || a.i - b.i)
+    .map((t, i) => ({ t, i, s: scoreTrack(terms, t), ts: titleScore(terms, t), p: repeatsAlbum(t) ? 1 : 0 }))
+    .sort((a, b) => b.s - a.s || a.p - b.p || b.ts - a.ts || a.i - b.i)
     .map((x) => x.t)
 }
 
@@ -90,12 +101,12 @@ export function selectTracks<T extends Rankable>(tracks: T[], terms: string[], p
 export const minScore = (n: number): number => (n <= 2 ? 1 : Math.ceil(n / 2))
 
 /**
- * Resultado final da busca: ordena pela pontuação (faixas que casam com a busca INTEIRA primeiro).
- * Em buscas com 3+ termos, descarta faixas que só casam com uma palavra solta da busca.
+ * Resultado final da busca: em buscas com 3+ termos, descarta faixas que só casam
+ * com uma palavra solta. A ordem é mantida — cada fonte já entrega na sua relevância
+ * (o Archive na do site), e reordenar por termo subia entrevista na frente de música.
  */
 export function filterByQuery<T extends Rankable>(tracks: T[], terms: string[]): T[] {
-  const ranked = rankTracks(tracks, terms)
-  if (terms.length <= 2) return ranked
+  if (terms.length <= 2) return tracks
   const need = minScore(terms.length)
-  return ranked.filter((t) => scoreTrack(terms, t) >= need)
+  return tracks.filter((t) => scoreTrack(terms, t) >= need)
 }

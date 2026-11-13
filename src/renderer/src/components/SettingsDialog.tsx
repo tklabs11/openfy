@@ -5,6 +5,9 @@ import { useLibrary } from '../library'
 import { createLibraryBackup, parseLibraryBackup } from '../backup'
 import { Icon } from './Icon'
 import { clearTaste, setTasteEnabled, tasteEnabled } from '../taste'
+import { isMobileApp } from '../platform'
+import { archiveOpenOnly, setArchiveOpenOnly } from '../plugin-sdk'
+import { autoVideoWindowEnabled, setAutoVideoWindowEnabled } from '../mobile/backgroundAudio'
 import type { View } from './Sidebar'
 import type { AppUpdateState, DesktopPreferences, DiscordPresenceStatus } from '@shared/types'
 
@@ -122,17 +125,30 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,panelLocked,onTo
     }
   }
   const [personalization,setPersonalization] = useState(tasteEnabled())
+  const [autoVideoWindow,setAutoVideoWindow] = useState(autoVideoWindowEnabled())
+  const [openOnly,setOpenOnly] = useState(archiveOpenOnly())
   const [tab,setTab] = useState<'geral'|'audio'|'aparencia'|'developer'|'privacidade'|'desktop'|'sobre'>('geral')
+  const tabs = ([['geral','Geral'],['audio','Áudio'],['aparencia','Aparência'],['developer','Desenvolvedor'],['privacidade','Privacidade'],['desktop','Desktop'],['sobre','Sobre']] as const)
+    .filter(([id]) => id !== 'desktop' || !isMobileApp())
   if (!open) return null
   return <div className="settings-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
     <section className="settings-dialog" role="dialog" aria-modal="true" aria-label="Configurações do Openfy">
       <header className="settings-heading"><div><small>PREFERÊNCIAS</small><h2>Configurações</h2></div><button className="topbar-icon" aria-label="Fechar" onClick={onClose}><Icon name="close"/></button></header>
-      <div className="settings-body"><nav className="settings-tabs">{([['geral','Geral'],['audio','Áudio'],['aparencia','Aparência'],['developer','Desenvolvedor'],['desktop','Desktop'],['privacidade','Privacidade'],['sobre','Sobre']] as const).map(([id,name])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{name}</button>)}</nav>
+      <div className="settings-body"><nav className="settings-tabs">{tabs.map(([id,name])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}>{name}</button>)}</nav>
       <div className="settings-content">
         {tab==='geral'&&<>
           <section className="settings-group">
             <h3>Interface</h3>
             <label className="settings-setting"><div><strong>Painel da música atual</strong><p>{panelLocked ? 'O painel fica aberto enquanto uma faixa do YouTube estiver selecionada para manter o player oficial visível.' : 'Exibir a capa e informações à direita. Você também pode alternar pelo ícone no topo.'}</p></div><input type="checkbox" checked={showNow} disabled={panelLocked} onChange={onToggleNow}/></label>
+          </section>
+          {isMobileApp() && <section className="settings-group">
+            <h3>Segundo plano</h3>
+            <label className="settings-setting"><div><strong>Vídeo em janela flutuante ao sair do app</strong><p>Desligado, vídeos do YouTube continuam só como áudio ao sair do app, sem janela na frente dos outros aplicativos. Ligado, o vídeo aparece na janela flutuante do sistema. Faixas de áudio tocam em segundo plano nos dois casos.</p></div><input type="checkbox" checked={autoVideoWindow} onChange={(event) => { setAutoVideoWindow(event.target.checked); setAutoVideoWindowEnabled(event.target.checked) }}/></label>
+            <p className="settings-tip">No player, o botão de janela flutuante abre o vídeo a qualquer momento.</p>
+          </section>}
+          <section className="settings-group">
+            <h3>Busca</h3>
+            <label className="settings-setting"><div><strong>Só conteúdo com licença aberta</strong><p>No Internet Archive, mostrar apenas itens com licença Creative Commons. Desligado (padrão), a busca traz o mesmo que o site do Archive — inclusive gravações enviadas por terceiros. A licença de cada faixa continua aparecendo quando o item informa.</p></div><input type="checkbox" checked={openOnly} onChange={(event) => { setOpenOnly(event.target.checked); setArchiveOpenOnly(event.target.checked) }}/></label>
           </section>
           <section className="settings-group">
             <h3>Biblioteca local</h3>
