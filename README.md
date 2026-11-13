@@ -64,7 +64,7 @@ npm run cap:open        # abre o projeto no Android Studio
 npm run android:apk     # gera o APK de debug
 ```
 
-Para gerar o APK é preciso JDK 21 e o Android SDK (o Android Studio instala os dois). A biblioteca fica no armazenamento do próprio WebView do app; não há servidor.
+Para gerar o APK é preciso Node.js 22 (o Capacitor 8 exige), JDK 21 e o Android SDK (o Android Studio instala os dois). A biblioteca fica no armazenamento do próprio WebView do app; não há servidor.
 
 ## Estrutura
 ```
