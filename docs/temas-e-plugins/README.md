@@ -108,7 +108,7 @@ Campos aceitos:
 
 ### Busca opcional do YouTube
 
-O manifesto `openfy.youtube` é instalado e ativado na primeira abertura do app (o mesmo conteúdo de `plugins-exemplo/youtube.openfy.json`), e pode ser desativado a qualquer momento em **Configurações → Desenvolvedor**. Não é preciso chave de API: o Openfy consulta instâncias públicas do Invidious e alterna entre elas quando alguma está fora do ar ou limitando acesso. Os vídeos são reproduzidos somente no player oficial incorporado, visível no painel **Tocando agora**; o Openfy não extrai nem baixa áudio. O Internet Archive continua sendo a outra fonte, filtrada por licenças abertas.
+O manifesto `openfy.youtube` é instalado e ativado na primeira abertura do app (o mesmo conteúdo de `plugins-exemplo/youtube.openfy.json`), e pode ser desativado a qualquer momento em **Configurações → Desenvolvedor**. Não é preciso chave de API: o Openfy consulta instâncias públicas do Invidious e alterna entre elas quando alguma está fora do ar ou limitando acesso. Os vídeos são reproduzidos somente no player oficial incorporado, visível no painel **Tocando agora**; o Openfy não extrai nem baixa áudio. O Internet Archive continua sendo a outra fonte; o filtro de licenças abertas é opcional (Configurações → Busca) e vem desligado.
 
 O arquivo aberto pelo botão **Abrir arquivo** deve ter até 64 KB.
 

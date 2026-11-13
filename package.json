@@ -1,6 +1,6 @@
 {
   "name": "openfy",
-  "version": "0.2.0-beta.4",
+  "version": "0.2.0-beta.5",
   "description": "Openfy - player de música desktop",
   "main": "./out/main/index.js",
   "author": "TK",
@@ -94,8 +94,8 @@
       "publishAutoUpdate": true
     },
     "releaseInfo": {
-      "releaseName": "Openfy v0.2.0-beta.4 — Linux, YouTube e MPRIS",
-      "releaseNotes": "## Openfy v0.2.0-beta.4 — Linux, YouTube e MPRIS\n\n### ▶️ Busca do YouTube\n\n- Busca por instâncias públicas do Invidious, sem chave de API.\n- Fonte do YouTube ativada por padrão, com controle para ativar ou desativar nas configurações.\n\n### 🐧 Suporte a Linux\n\n- Pacotes AppImage, `.deb`, `.rpm` e `.tar.gz`, mantendo o instalador NSIS para Windows.\n- Ajustes de sandbox do Chromium para Ubuntu e fallback automático no AppImage quando user namespaces não estão disponíveis.\n- AppImage construído em Ubuntu 22.04 para ampliar a compatibilidade com distribuições Linux.\n\n### 🎧 Controles de mídia\n\n- Integração MPRIS para teclas de mídia e controles do GNOME, KDE e outros ambientes Linux, incluindo Wayland.\n\n### ⚠️ Versão beta\n\nEsta é uma versão de testes. O instalador ainda não possui assinatura digital; baixe-o somente desta página oficial do projeto."
+      "releaseName": "Openfy v0.2.0-beta.5 — Busca do Internet Archive e versão Android",
+      "releaseNotes": "## Openfy v0.2.0-beta.5 — Busca do Internet Archive e primeira versão Android\n\n### 🔎 Busca do Internet Archive\n\n- A busca agora usa o mesmo backend do site do Archive, com a relevância dele. Antes, termos soltos traziam qualquer coisa: \"legiao urbana\" devolvia ensaio sobre cidades e podcast espírita.\n- Vários termos passaram a ser exigidos juntos, o campo descrição saiu da consulta e nomes com barra ou aspas (\"AC/DC\", \"guns n' roses\") não quebram mais a pesquisa.\n- Item do artista abre o disco inteiro; item que só cita o nome no título aparece com no máximo 3 faixas.\n- O filtro \"só licenças abertas\" deixou de ser obrigatório: virou opção em Configurações → Busca, desligada por padrão para a busca trazer o mesmo que o site.\n\n### 🤖 Primeira versão Android\n\n- Interface em abas (Início, Buscar e Biblioteca), mini-player fixo e player em tela cheia, com Capacitor sobre a mesma interface React.\n- Áudio continua em segundo plano com serviço em primeiro plano e MediaSession: notificação, tela de bloqueio e botões do fone com play, pausar, anterior, próxima e seek.\n- Vídeos do YouTube continuam tocando como áudio ao sair do app, sem janela na frente dos outros aplicativos. A janela flutuante (PiP) passou a ser opcional em Configurações → Segundo plano.\n- A biblioteca fica no armazenamento do próprio app, sem servidor. O APK é gerado localmente com `npm run android:apk`.\n\n### 🐧 Windows e Linux\n\n- Instaladores NSIS (Windows) e AppImage, `.deb`, `.rpm` e `.tar.gz` (Linux) como antes, já com a busca nova.\n\n### ⚠️ Versão beta\n\nEsta é uma versão de testes. O instalador ainda não possui assinatura digital; baixe-o somente desta página oficial do projeto."
     },
     "rpm": {
       "afterInstall": "build/linux/after-install.sh"

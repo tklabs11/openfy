@@ -95,7 +95,7 @@ Crie e compartilhe temas personalizados e conheça os limites atuais do Develope
 
 As versões instaladas no Windows e o AppImage do Linux verificam atualizações publicadas em GitHub Releases. A verificação também pode ser iniciada em **Configurações → Desktop**; quando uma atualização é encontrada, o app a baixa e oferece reiniciar para instalar. Versões beta recebem versões beta e estáveis recebem apenas versões estáveis. O `.deb` não usa o atualizador do app: atualize com o gerenciador de pacotes.
 
-Para publicar uma versão beta, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.2.0-beta.4`) e envie-a ao GitHub. O workflow gera o instalador NSIS no Windows e, em seguida, AppImage, `.deb`, `.rpm` e `.tar.gz` no Linux, publicando tudo na mesma pré-release com os metadados necessários para o atualizador. A configuração atual está no canal beta; antes da primeira versão estável, altere `build.publish.releaseType` para `release`.
+Para publicar uma versão beta, crie uma tag `v` igual à versão do `package.json` (por exemplo, `v0.2.0-beta.5`) e envie-a ao GitHub. O workflow gera o instalador NSIS no Windows e, em seguida, AppImage, `.deb`, `.rpm` e `.tar.gz` no Linux, publicando tudo na mesma pré-release com os metadados necessários para o atualizador. A configuração atual está no canal beta; antes da primeira versão estável, altere `build.publish.releaseType` para `release`.
 
 ## Fila e backup da biblioteca
 

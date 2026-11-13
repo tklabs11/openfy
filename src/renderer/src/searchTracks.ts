@@ -1,7 +1,7 @@
 import type { SearchPage, Track } from '@shared/types'
 import { readEnabled, readPlugins, resolveSearchOptions } from './plugin-sdk'
 
-/** Busca de músicas respeitando os plugins ativos. Sem plugin ativo, usa o padrão restrito (só licenças abertas). */
+/** Busca de músicas respeitando os plugins ativos (o filtro de licença é uma preferência, desligada por padrão). */
 export const searchTracks = (query: string): Promise<Track[]> =>
   window.api.search(query, resolveSearchOptions(readPlugins(), readEnabled()))
 
