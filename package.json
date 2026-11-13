@@ -64,7 +64,13 @@
         "Name": "Openfy",
         "Comment": "Player de música desktop",
         "StartupWMClass": "Openfy"
-      }
+      },
+      "extraFiles": [
+        {
+          "from": "build/linux/AppRun",
+          "to": "AppRun"
+        }
+      ]
     },
     "deb": {
       "afterInstall": "build/linux/after-install.sh"

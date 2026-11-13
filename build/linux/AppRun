@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+# Aponta para a pasta do AppDir (definida pelo runtime do AppImage).
+THIS="$(readlink -f "$0")"
+APPDIR="${APPDIR:-$(dirname "$THIS")}"
+export PATH="${APPDIR}:${PATH}"
+export XDG_DATA_DIRS="${APPDIR}/usr/share/:${XDG_DATA_DIRS}:/usr/share/gnome/:/usr/local/share/:/usr/share/"
+export LD_LIBRARY_PATH="${APPDIR}/usr/lib:${LD_LIBRARY_PATH}"
+export GSETTINGS_SCHEMA_DIR="${APPDIR}/usr/share/glib-2.0/schemas:${GSETTINGS_SCHEMA_DIR}"
+
+BIN="$APPDIR/openfy"
+
+# AppImages são montadas sem SUID, então o sandbox SUID do Chromium nunca funciona.
+# Se o sistema também bloquear user namespaces (Ubuntu 24+ via AppArmor), o app abortaria.
+sandbox_args=()
+if ! command -v unshare >/dev/null 2>&1 || ! unshare --user true 2>/dev/null; then
+  sandbox_args+=(--no-sandbox)
+fi
+
+exec "$BIN" "${sandbox_args[@]}" "$@"
