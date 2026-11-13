@@ -127,6 +127,29 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,panelLocked,onTo
   const [personalization,setPersonalization] = useState(tasteEnabled())
   const [autoVideoWindow,setAutoVideoWindow] = useState(autoVideoWindowEnabled())
   const [openOnly,setOpenOnly] = useState(archiveOpenOnly())
+  const updateMessage =
+    updateState.status === 'idle' ? 'Verifique se há uma versão mais recente.' :
+    updateState.status === 'checking' ? 'Verificando atualizações…' :
+    updateState.status === 'available' ? `Versão ${updateState.version ?? ''} encontrada. Preparando o download…` :
+    updateState.status === 'downloading' ? `Baixando versão ${updateState.version ?? ''}… ${Math.round(updateState.percent ?? 0)}%` :
+    updateState.status === 'downloaded' ? `Versão ${updateState.version ?? ''} pronta para instalar.` :
+    updateState.status === 'not-available' ? 'O Openfy já está atualizado.' :
+    updateState.status === 'unsupported' ? 'Atualização automática disponível nas versões instaladas para Windows e no AppImage do Linux. No .deb, atualize pelo gerenciador de pacotes.' :
+    isMobileApp() ? 'Não foi possível atualizar. Permita "instalar apps desconhecidos" para o Openfy e tente de novo.' :
+    'Não foi possível verificar atualizações. Confira sua conexão e tente novamente.'
+  const updatePanel = <section className="settings-group">
+    <h3>Atualizações</h3>
+    <div className="settings-update">
+      <div><strong>Atualizações do Openfy</strong><p>{updateMessage}</p></div>
+      {updateState.status === 'downloaded'
+        ? <button className="settings-action" onClick={() => void installUpdate()}>{isMobileApp() ? 'Instalar atualização' : 'Reiniciar e atualizar'}</button>
+        : <button className="settings-action" disabled={['checking', 'available', 'downloading', 'unsupported'].includes(updateState.status)} onClick={() => void checkForUpdates()}>{updateState.status === 'error' ? 'Tentar novamente' : 'Buscar atualizações'}</button>}
+    </div>
+    <p className="settings-tip">{isMobileApp()
+      ? 'O APK novo vem da pré-release oficial no GitHub. Na primeira vez o Android pede para permitir "instalar apps desconhecidos" para o Openfy.'
+      : 'No Windows o app reinicia para instalar; no AppImage a troca é automática. Em pacotes .deb/.rpm, atualize pelo gerenciador.'}</p>
+  </section>
+
   const [tab,setTab] = useState<'geral'|'audio'|'aparencia'|'developer'|'privacidade'|'desktop'|'sobre'>('geral')
   const tabs = ([['geral','Geral'],['audio','Áudio'],['aparencia','Aparência'],['developer','Desenvolvedor'],['privacidade','Privacidade'],['desktop','Desktop'],['sobre','Sobre']] as const)
     .filter(([id]) => id !== 'desktop' || !isMobileApp())
@@ -150,6 +173,7 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,panelLocked,onTo
             <h3>Busca</h3>
             <label className="settings-setting"><div><strong>Só conteúdo com licença aberta</strong><p>No Internet Archive, mostrar apenas itens com licença Creative Commons. Desligado (padrão), a busca traz o mesmo que o site do Archive — inclusive gravações enviadas por terceiros. A licença de cada faixa continua aparecendo quando o item informa.</p></div><input type="checkbox" checked={openOnly} onChange={(event) => { setOpenOnly(event.target.checked); setArchiveOpenOnly(event.target.checked) }}/></label>
           </section>
+          {updatePanel}
           <section className="settings-group">
             <h3>Biblioteca local</h3>
             <label className="settings-setting"><div><strong>Buscar capas automaticamente</strong><p>Ao adicionar músicas locais, procurar capas pelo título e artista no catálogo do iTunes. Esses dados são enviados à Apple; a busca pode não encontrar uma correspondência.</p></div><input type="checkbox" checked={automaticLocalCovers} onChange={(event) => useLibrary.getState().updateSettings({ automaticLocalCovers: event.target.checked })}/></label>
@@ -205,21 +229,6 @@ export function SettingsDialog({open,onClose,onNavigate,showNow,panelLocked,onTo
             unavailable: 'não encontrado. Abra o aplicativo Discord para conectar.',
             error: 'o Discord recusou a conexão. Verifique a configuração da integração.'
           }[discordStatus]}</p>
-          <div className="settings-update">
-            <div><strong>Atualizações do Openfy</strong><p>{
-              updateState.status === 'idle' ? 'Verifique se há uma versão mais recente.' :
-              updateState.status === 'checking' ? 'Verificando atualizações…' :
-              updateState.status === 'available' ? `Versão ${updateState.version ?? ''} encontrada. Preparando o download…` :
-              updateState.status === 'downloading' ? `Baixando versão ${updateState.version ?? ''}… ${Math.round(updateState.percent ?? 0)}%` :
-              updateState.status === 'downloaded' ? `Versão ${updateState.version ?? ''} pronta para instalar.` :
-              updateState.status === 'not-available' ? 'O Openfy já está atualizado.' :
-              updateState.status === 'unsupported' ? 'Atualização automática disponível nas versões instaladas para Windows e no AppImage do Linux. No .deb, atualize pelo gerenciador de pacotes.' :
-              'Não foi possível verificar atualizações. Confira sua conexão e tente novamente.'
-            }</p></div>
-            {updateState.status === 'downloaded'
-              ? <button className="settings-action" onClick={() => void installUpdate()}>Reiniciar e atualizar</button>
-              : <button className="settings-action" disabled={['checking', 'available', 'downloading', 'unsupported'].includes(updateState.status)} onClick={() => void checkForUpdates()}>{updateState.status === 'error' ? 'Tentar novamente' : 'Buscar atualizações'}</button>}
-          </div>
           <p className="settings-tip">Controles na prévia da barra de tarefas estão disponíveis no Windows. No Linux, as teclas de mídia e o controle de mídia do sistema funcionam pelo MPRIS; a bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator).</p>
         </>}
         {tab==='audio' &&<><h3>Reprodução e áudio</h3><p>Personalize as frequências, presets e visualizador no Audio Studio.</p>

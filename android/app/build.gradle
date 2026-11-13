@@ -9,6 +9,12 @@ def openfyVersionCode = openfyMatch.matches()
       (openfyMatch[0][3] as int) * 100 + (openfyMatch[0][4] ? (openfyMatch[0][4] as int) : 99)
     : 1
 
+// Assinatura do APK no CI: o keystore chega por secret e é decodificado antes do
+// build. Sem ele o release sai sem assinatura, e o workflow publica o APK de debug.
+def openfyKeystore = rootProject.file('openfy-release.keystore')
+def openfyKeystorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def openfySignedRelease = openfyKeystore.exists() && openfyKeystorePassword
+
 android {
     namespace = "com.openfy.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -25,10 +31,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (openfySignedRelease) {
+            release {
+                storeFile openfyKeystore
+                storePassword openfyKeystorePassword
+                keyAlias System.getenv('ANDROID_KEY_ALIAS') ?: 'openfy'
+                keyPassword System.getenv('ANDROID_KEY_PASSWORD') ?: openfyKeystorePassword
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (openfySignedRelease) signingConfig signingConfigs.release
         }
     }
 }

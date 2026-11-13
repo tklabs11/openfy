@@ -49,7 +49,11 @@ A versão Android usa [Capacitor](https://capacitorjs.com) e reaproveita a inter
 - Faixas de áudio (ex.: Internet Archive) continuam tocando em segundo plano. Um serviço em primeiro plano mantém o app vivo e uma `MediaSession` nativa alimenta a notificação, a tela de bloqueio e os botões do fone, com play, pausar, anterior, próxima e seek.
 - Vídeos do YouTube pausam quando a página fica oculta — limitação do player oficial. Para não interromper a música, ao sair do app a faixa passa a tocar pelo stream só de áudio do Invidious e volta para o vídeo na posição certa quando o app reaparece: **sem nenhuma janela na frente dos outros aplicativos**. Quem preferir o vídeo visível pode ligar **Configurações → Segundo plano → Vídeo em janela flutuante**, ou usar o botão de janela flutuante no player.
 
-Este primeiro corte cobre busca online (Internet Archive e YouTube via Invidious), reprodução, biblioteca, favoritos e playlists. Arquivos locais e integrações de desktop (bandeja, Discord, atualização automática) ainda não estão disponíveis.
+Este primeiro corte cobre busca online (Internet Archive e YouTube via Invidious), reprodução, biblioteca, favoritos e playlists. Arquivos locais e integrações de desktop (bandeja, Discord) ainda não estão disponíveis.
+
+Atualizações:
+- O APK sai na mesma pré-release do GitHub que os instaladores de Windows e Linux. Em **Configurações → Atualizações**, o app consulta a release, baixa o APK novo e abre o instalador do sistema — na primeira vez o Android pede para permitir "instalar apps desconhecidos" para o Openfy.
+- No CI o APK é assinado quando existem os secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD`; sem eles é publicado o APK de debug (assinatura diferente a cada build exige desinstalar antes de atualizar).
 
 ```bash
 npm ci

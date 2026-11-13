@@ -15,10 +15,14 @@ import { sanitizeDb } from '@shared/db-sanitize'
 import { featured, search, searchPage } from '@main/sources'
 import { checkInvidious, invidiousLastError } from '@main/sources/invidious'
 import { getLyrics } from '@main/lyrics'
+import { createMobileUpdater } from './appUpdater'
 
 const DB_KEY = 'openfy-db-v1'
 const PREFS_KEY = 'openfy-desktop-preferences-v1'
 const DEFAULT_PREFS: DesktopPreferences = { minimizeToTray: false, notifications: false, discordPresence: false }
+
+// O estado da atualização precisa sobreviver às telas: o objeto é único.
+const updater = createMobileUpdater()
 
 function readPreferences(): DesktopPreferences {
   try {
@@ -81,10 +85,10 @@ export function createMobileApi(): OpenfyApi {
     },
     desktopGetDiscordPresenceStatus: async (): Promise<DiscordPresenceStatus> => 'disabled',
     onDiscordPresenceStatus: () => () => {},
-    desktopGetUpdateState: async (): Promise<AppUpdateState> => ({ status: 'unsupported' }),
-    desktopCheckForUpdates: async (): Promise<void> => {},
-    desktopInstallUpdate: async (): Promise<void> => {},
-    onUpdateState: () => () => {},
+    desktopGetUpdateState: async (): Promise<AppUpdateState> => updater.getState(),
+    desktopCheckForUpdates: (): Promise<void> => updater.check(),
+    desktopInstallUpdate: (): Promise<void> => updater.install(),
+    onUpdateState: (callback: (state: AppUpdateState) => void): (() => void) => updater.onState(callback),
     desktopUpdatePlayback: (): void => {},
     onMediaKey: () => () => {}
   }
