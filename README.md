@@ -53,6 +53,7 @@ Este primeiro corte cobre busca online (Internet Archive e YouTube via Invidious
 
 Atualizações:
 - O APK sai na mesma pré-release do GitHub que os instaladores de Windows e Linux. Em **Configurações → Atualizações**, o app consulta a release, baixa o APK novo e abre o instalador do sistema — na primeira vez o Android pede para permitir "instalar apps desconhecidos" para o Openfy.
+- O workflow **Publicar APK Android** roda com a tag e também pode ser disparado à mão (Actions → Publicar APK Android → Run workflow, com a tag do release), para anexar ou refazer só o APK sem reconstruir Windows e Linux.
 - No CI o APK é assinado quando existem os secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e `ANDROID_KEY_PASSWORD`; sem eles é publicado o APK de debug (assinatura diferente a cada build exige desinstalar antes de atualizar).
 
 ```bash

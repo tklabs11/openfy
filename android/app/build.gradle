@@ -18,6 +18,8 @@ def openfySignedRelease = openfyKeystore.exists() && openfyKeystorePassword
 android {
     namespace = "com.openfy.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    // Versão fixa: o CI instala exatamente esta, sem depender do padrão do AGP.
+    buildToolsVersion = "36.0.0"
     defaultConfig {
         applicationId "com.openfy.app"
         minSdkVersion rootProject.ext.minSdkVersion
