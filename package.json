@@ -1,6 +1,6 @@
 {
   "name": "openfy",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.4",
   "description": "Openfy - player de música desktop",
   "main": "./out/main/index.js",
   "author": "TK",
@@ -86,8 +86,8 @@
       "publishAutoUpdate": true
     },
     "releaseInfo": {
-      "releaseName": "Openfy v0.2.0-beta.2 — UNLEASHED - Theme engine 2.0",
-      "releaseNotes": "## 🎨 Openfy v0.2.0-beta.2 — UNLEASHED - Theme engine 2.0\n\n### ▶️ Reprodução do YouTube\n\n- Corrigido o avanço automático para a próxima faixa da fila quando um vídeo termina.\n- Ao trocar de faixa do YouTube, o próximo vídeo agora é carregado e reproduzido automaticamente.\n- Os controles nativos do embed foram ocultados para manter a reprodução sob controle do Openfy.\n\n### ✨ Theme Engine 2.0\n\n- Editor de temas com prévia ao vivo e controles para vidro, neon, fundos e animações.\n- Presets **Openfy Glass**, **Openfy Neon Pulse** e **Openfy Ambient**.\n- Fundos sólidos, imagens locais persistentes ou capas das músicas.\n- Efeitos visuais avançados e Modo leve para controlar o desempenho.\n- Salve as alterações no tema existente, em outro tema personalizado ou como um novo, sem duplicar por acidente.\n- Temas antigos continuam compatíveis e temas oficiais não são sobrescritos.\n\n### 🛠️ Correções e compatibilidade\n\n- Corrigidos problemas de layout ao abrir configurações e expandir o painel da música.\n- Corrigidos problemas de abertura e estabilidade do editor de temas.\n- Corrigido o escurecimento do fundo no modo sólido.\n- Temas importados são validados; CSS, JavaScript e URLs de imagem arbitrárias não são aceitos.\n\n### ⚠️ Versão beta\n\nEsta é uma versão de testes. O instalador ainda não possui assinatura digital; baixe-o somente desta página oficial do projeto."
+      "releaseName": "Openfy v0.2.0-beta.4 — Linux, YouTube e MPRIS",
+      "releaseNotes": "## Openfy v0.2.0-beta.4 — Linux, YouTube e MPRIS\n\n### ▶️ Busca do YouTube\n\n- Busca por instâncias públicas do Invidious, sem chave de API.\n- Fonte do YouTube ativada por padrão, com controle para ativar ou desativar nas configurações.\n\n### 🐧 Suporte a Linux\n\n- Pacotes AppImage, `.deb`, `.rpm` e `.tar.gz`, mantendo o instalador NSIS para Windows.\n- Ajustes de sandbox do Chromium para Ubuntu e fallback automático no AppImage quando user namespaces não estão disponíveis.\n- AppImage construído em Ubuntu 22.04 para ampliar a compatibilidade com distribuições Linux.\n\n### 🎧 Controles de mídia\n\n- Integração MPRIS para teclas de mídia e controles do GNOME, KDE e outros ambientes Linux, incluindo Wayland.\n\n### ⚠️ Versão beta\n\nEsta é uma versão de testes. O instalador ainda não possui assinatura digital; baixe-o somente desta página oficial do projeto."
     },
     "rpm": {
       "afterInstall": "build/linux/after-install.sh"
