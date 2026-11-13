@@ -39,7 +39,7 @@ O AppImage precisa do FUSE 2 (`libfuse2` no Debian/Ubuntu, `fuse-libs` no Fedora
 
 No Ubuntu 23.10 e mais recente o AppArmor restringe user namespaces para aplicativos abertos pela sessão gráfica. O `.deb` configura o helper SUID do Chromium na instalação, e o AppImage detecta a restrição e inicia com `--no-sandbox` automaticamente. No Ubuntu, prefira o `.deb`.
 
-No Linux, a atualização automática funciona pelo AppImage; no `.deb`, atualize com `apt`. A bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator) e as teclas de mídia podem ser bloqueadas pelo Wayland.
+Atualização automática: no Linux funciona pelo AppImage; nos pacotes `.deb`/`.rpm`, atualize pelo gerenciador. Teclas de mídia e o painel de mídia do GNOME/KDE funcionam via MPRIS. A bandeja depende do ambiente gráfico (no GNOME pode exigir a extensão AppIndicator).
 
 ## Estrutura
 ```
@@ -51,7 +51,7 @@ src/renderer      interface React (views, componentes, player, biblioteca)
 ```
 
 ## Atalhos
-Espaço = play/pause. Teclas de mídia do teclado funcionam.
+Espaço = play/pause. Teclas de mídia do teclado funcionam; no Linux elas chegam pelo MPRIS, e o Openfy também aparece no controle de mídia do GNOME, KDE e afins.
 
 ## Discord Rich Presence
 

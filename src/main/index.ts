@@ -11,6 +11,7 @@ import { getLyrics } from './lyrics'
 import { findLocalCover } from './local-covers'
 import { invidiousLastError, checkInvidious } from './sources/invidious'
 import { discordPresence } from './discordPresence'
+import { startMpris, type MprisHandle } from './mpris'
 import { appUpdates } from './updates'
 
 // Keep the existing userData path unchanged to preserve libraries and settings.
@@ -53,6 +54,7 @@ const themeBackgroundDir = (): string => join(app.getPath('userData'), 'theme-ba
 const desktopPrefsPath = (): string => join(app.getPath('userData'), 'desktop-preferences.json')
 let desktopPrefs: DesktopPreferences = { minimizeToTray: false, notifications: false, discordPresence: false }
 let tray: Tray | null = null
+let mpris: MprisHandle | null = null
 let quitting = false
 let playback = { playing: false, title: '', artist: '' }
 let mainWindow: BrowserWindow | null = null
@@ -450,6 +452,7 @@ if (hasInstanceLock) app.whenReady().then(() => {
     const changed = title && title !== playback.title
     playback = { playing: p.playing === true, title, artist }
     discordPresence.updatePlayback({ playing: playback.playing, title, artist, duration, position })
+    mpris?.update({ playing: playback.playing, title, artist, duration, position })
     if (mainWindow && !mainWindow.isDestroyed()) updateThumbbar(mainWindow)
     refreshTray()
     if (changed && playback.playing && desktopPrefs.notifications && Notification.isSupported()) new Notification({ title: 'Tocando agora no Openfy', body: `${title} — ${artist}` }).show()
@@ -458,6 +461,10 @@ if (hasInstanceLock) app.whenReady().then(() => {
   let win: BrowserWindow | null = createWindow()
   win.on('closed', () => (win = null))
   registerMediaKeys(() => win)
+  if (process.platform === 'linux') {
+    // Teclas de mídia e controle do sistema no Wayland chegam pelo MPRIS, não pelo globalShortcut.
+    mpris = startMpris((key) => sendMedia(key), () => mainWindow)
+  }
   appUpdates.setListener((state) => {
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:update:state', state)
   })
@@ -472,7 +479,7 @@ if (hasInstanceLock) app.whenReady().then(() => {
 })
 
 app.on('before-quit', () => { quitting = true })
-app.on('will-quit', () => { globalShortcut.unregisterAll(); tray?.destroy(); discordPresence.setEnabled(false) })
+app.on('will-quit', () => { globalShortcut.unregisterAll(); tray?.destroy(); mpris?.destroy(); discordPresence.setEnabled(false) })
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
